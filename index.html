@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0c66e4" />
+  <title>Flowboard — project planning</title>
+  <style>
+    :root { --blue:#0c66e4; --blue-dark:#0055cc; --ink:#172b4d; --muted:#5e6c84; --surface:#f1f2f4; --panel:#ffffff; --line:#dfe1e6; --shadow:0 1px 2px rgba(9,30,66,.18); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; color:var(--ink); font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:linear-gradient(135deg,#0c66e4 0%,#0055cc 50%,#0747a6 100%); }
+    button,input,textarea { font:inherit; }
+    button { cursor:pointer; border:0; }
+    .topbar { height:56px; display:flex; align-items:center; gap:12px; padding:0 22px; color:#fff; background:rgba(9,30,66,.28); box-shadow:0 1px 0 rgba(255,255,255,.12); }
+    .brand { display:flex; align-items:center; gap:8px; font-weight:800; font-size:21px; letter-spacing:-.6px; white-space:nowrap; }
+    .brand-mark { width:24px; height:24px; display:grid; grid-template-columns:1fr 1fr; gap:3px; padding:3px; border-radius:4px; background:#fff; }
+    .brand-mark i { display:block; background:var(--blue); border-radius:2px; } .brand-mark i:first-child { height:70%; } .brand-mark i:last-child { height:100%; }
+    .workspace { border-left:1px solid rgba(255,255,255,.35); padding-left:13px; font-size:14px; font-weight:600; }
+    .search { margin-left:auto; width:min(310px,30vw); padding:8px 12px; color:#fff; border:1px solid rgba(255,255,255,.55); border-radius:5px; outline:0; background:rgba(255,255,255,.18); }
+    .search::placeholder { color:rgba(255,255,255,.86); }
+    .avatar { width:31px; height:31px; display:grid; place-items:center; border-radius:50%; background:#ffab00; color:#172b4d; font-size:13px; font-weight:800; }
+    main { padding:25px 28px; }
+    .board-header { display:flex; align-items:center; gap:14px; margin-bottom:22px; color:#fff; }
+    h1 { margin:0; font-size:25px; letter-spacing:-.5px; }
+    .board-header .spacer { flex:1; }
+    .pill { padding:8px 12px; border-radius:5px; color:#fff; background:rgba(255,255,255,.18); font-weight:650; font-size:14px; }
+    .pill:hover { background:rgba(255,255,255,.30); }
+    .board { display:flex; align-items:flex-start; gap:14px; overflow-x:auto; min-height:calc(100vh - 150px); padding-bottom:20px; }
+    .list { flex:0 0 280px; max-height:calc(100vh - 172px); display:flex; flex-direction:column; padding:10px; border-radius:12px; background:var(--surface); box-shadow:0 2px 5px rgba(9,30,66,.18); }
+    .list-head { display:flex; align-items:center; gap:8px; padding:0 3px 9px; }
+    .list-title { flex:1; padding:5px 4px; color:#172b4d; border:1px solid transparent; border-radius:4px; background:transparent; font-weight:750; outline:none; }
+    .list-title:focus { border-color:var(--blue); background:#fff; }
+    .icon-btn { width:28px; height:28px; display:grid; place-items:center; border-radius:5px; color:#44546f; background:transparent; font-size:19px; line-height:1; }
+    .icon-btn:hover { background:#dcdfe4; }
+    .cards { min-height:8px; overflow-y:auto; padding:0 1px; }
+    .card { position:relative; margin-bottom:8px; padding:10px; border-radius:8px; background:var(--panel); box-shadow:var(--shadow); cursor:grab; transition:transform .12s, box-shadow .12s; }
+    .card:hover { transform:translateY(-1px); box-shadow:0 3px 7px rgba(9,30,66,.2); }
+    .card.dragging { opacity:.42; }
+    .label { display:inline-block; width:42px; height:8px; margin-bottom:7px; border-radius:10px; background:#61bd4f; }
+    .label.purple { background:#c377e0; } .label.orange { background:#ff9f1a; } .label.red { background:#eb5a46; }
+    .card-title { display:block; padding-right:22px; color:#172b4d; font-size:14px; line-height:1.35; }
+    .card-meta { display:flex; align-items:center; gap:8px; margin-top:9px; color:#5e6c84; font-size:12px; }
+    .card-meta .due { padding:2px 5px; border-radius:3px; background:#e4f0f6; color:#216e4e; }
+    .delete-card { position:absolute; top:7px; right:7px; opacity:0; width:23px; height:23px; color:#6b778c; background:transparent; border-radius:4px; font-size:17px; }
+    .card:hover .delete-card { opacity:1; } .delete-card:hover { background:#f1f2f4; color:#ae2e24; }
+    .add-card { width:100%; margin-top:2px; padding:8px; color:#44546f; border-radius:6px; text-align:left; background:transparent; font-size:14px; }
+    .add-card:hover { background:#dcdfe4; }
+    .composer { padding-top:2px; } .composer textarea { width:100%; resize:vertical; min-height:62px; padding:9px; border:0; border-radius:6px; outline:2px solid var(--blue); box-shadow:var(--shadow); }
+    .composer-actions { display:flex; align-items:center; gap:7px; margin-top:7px; } .primary { padding:7px 12px; color:#fff; border-radius:5px; background:var(--blue); font-weight:650; font-size:14px; } .primary:hover { background:var(--blue-dark); }
+    .add-list { flex:0 0 280px; padding:12px 14px; border-radius:10px; color:#fff; background:rgba(255,255,255,.22); text-align:left; font-weight:650; } .add-list:hover { background:rgba(255,255,255,.32); }
+    .empty { padding:10px 5px 12px; color:#6b778c; font-size:13px; text-align:center; }
+    .toast { position:fixed; right:22px; bottom:22px; padding:11px 14px; color:#fff; border-radius:7px; background:#172b4d; box-shadow:0 5px 14px rgba(9,30,66,.3); opacity:0; transform:translateY(15px); transition:.2s; pointer-events:none; font-size:14px; } .toast.show { opacity:1; transform:translateY(0); }
+    @media (max-width:650px) { .topbar { padding:0 14px; } .workspace { display:none; } .search { display:none; } main { padding:18px 14px; } .board-header { margin-bottom:16px; } .board { min-height:calc(100vh - 135px); } .list,.add-list { flex-basis:265px; } .board-header .pill:first-of-type { display:none; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark"><i></i><i></i></span>Flowboard</div>
+    <div class="workspace">My Workspace</div>
+    <input class="search" id="search" type="search" placeholder="Search cards" aria-label="Search cards" />
+    <div class="avatar" title="You">AH</div>
+  </header>
+  <main>
+    <section class="board-header"><h1>Website Launch</h1><span class="pill">★ Star</span><span class="pill">👥 Share</span><span class="spacer"></span><button class="pill" id="clear-board">Clear board</button></section>
+    <section class="board" id="board" aria-label="Project board"></section>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    const initial = [
+      { title:'Ideas', cards:[['purple','Research competitor landing pages','💬 3'],['orange','Collect customer testimonials','📎 2'],['','Plan launch announcement','']] },
+      { title:'To do', cards:[['red','Write homepage copy','📅 Jul 31'],['orange','Create social media graphics','📎 4'],['','Set up analytics events','']] },
+      { title:'In progress', cards:[['purple','Design responsive homepage','💬 5'],['','Build email signup form','📅 Aug 2']] },
+      { title:'Done', cards:[['','Choose brand colour palette','✓ Complete'],['','Set project goals','✓ Complete']] }
+    ];
+    let lists = JSON.parse(localStorage.getItem('flowboard-data') || 'null') || initial.map((l,i)=>({id:crypto.randomUUID(),title:l.title,cards:l.cards.map(c=>({id:crypto.randomUUID(),color:c[0],title:c[1],meta:c[2]}))}));
+    const board = document.querySelector('#board'), search = document.querySelector('#search'), toast = document.querySelector('#toast');
+    let dragCard = null, toastTimer;
+    const save = () => localStorage.setItem('flowboard-data', JSON.stringify(lists));
+    const say = text => { toast.textContent=text; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),1800); };
+    const esc = text => text.replace(/[&<>'"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    function cardMarkup(card) { return `<article class="card" draggable="true" data-card-id="${card.id}">${card.color ? `<span class="label ${card.color}"></span>`:''}<span class="card-title">${esc(card.title)}</span><button class="delete-card" title="Delete card" aria-label="Delete ${esc(card.title)}">×</button>${card.meta?`<div class="card-meta"><span>${esc(card.meta)}</span></div>`:''}</article>`; }
+    function render(filter='') {
+      board.innerHTML = lists.map(list=>`<section class="list" data-list-id="${list.id}"><div class="list-head"><input class="list-title" value="${esc(list.title)}" aria-label="List title" /><button class="icon-btn delete-list" title="Delete list" aria-label="Delete list">×</button></div><div class="cards">${list.cards.filter(c=>c.title.toLowerCase().includes(filter.toLowerCase())).map(cardMarkup).join('') || `<div class="empty">${filter?'No matching cards':'No cards yet'}</div>`}</div><div class="composer" hidden><textarea placeholder="Enter a title for this card…" aria-label="New card title"></textarea><div class="composer-actions"><button class="primary save-card">Add card</button><button class="icon-btn cancel-card" aria-label="Cancel">×</button></div></div><button class="add-card">＋ Add a card</button></section>`).join('') + '<button class="add-list" id="add-list">＋ Add another list</button>';
+      wireEvents();
+    }
+    function wireEvents() {
+      document.querySelectorAll('.list-title').forEach(input=>input.addEventListener('change',e=>{ const l=lists.find(x=>x.id===e.target.closest('.list').dataset.listId); l.title=e.target.value.trim()||'Untitled list'; save(); say('List renamed'); }));
+      document.querySelectorAll('.add-card').forEach(btn=>btn.addEventListener('click',()=>{ const list=btn.closest('.list'); list.querySelector('.composer').hidden=false; btn.hidden=true; list.querySelector('textarea').focus(); }));
+      document.querySelectorAll('.cancel-card').forEach(btn=>btn.addEventListener('click',()=>{ const list=btn.closest('.list'); list.querySelector('.composer').hidden=true; list.querySelector('.add-card').hidden=false; }));
+      document.querySelectorAll('.save-card').forEach(btn=>btn.addEventListener('click',()=>addCard(btn.closest('.list'))));
+      document.querySelectorAll('.composer textarea').forEach(area=>area.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addCard(e.target.closest('.list'));} if(e.key==='Escape')e.target.closest('.list').querySelector('.cancel-card').click();}));
+      document.querySelectorAll('.delete-card').forEach(btn=>btn.addEventListener('click',()=>{ const card=btn.closest('.card'), list=lists.find(l=>l.id===card.closest('.list').dataset.listId); list.cards=list.cards.filter(c=>c.id!==card.dataset.cardId); save(); render(search.value); say('Card deleted'); }));
+      document.querySelectorAll('.delete-list').forEach(btn=>btn.addEventListener('click',()=>{ const id=btn.closest('.list').dataset.listId; lists=lists.filter(l=>l.id!==id); save(); render(search.value); say('List deleted'); }));
+      document.querySelectorAll('.card').forEach(card=>{card.addEventListener('dragstart',()=>{dragCard=card; setTimeout(()=>card.classList.add('dragging'));});card.addEventListener('dragend',()=>{card.classList.remove('dragging');dragCard=null;});});
+      document.querySelectorAll('.cards').forEach(area=>{ area.addEventListener('dragover',e=>e.preventDefault()); area.addEventListener('drop',e=>{e.preventDefault();if(!dragCard)return; const from=lists.find(l=>l.id===dragCard.closest('.list').dataset.listId), to=lists.find(l=>l.id===area.closest('.list').dataset.listId), card=from.cards.find(c=>c.id===dragCard.dataset.cardId); from.cards=from.cards.filter(c=>c.id!==card.id); to.cards.push(card); save(); render(search.value); say('Card moved');});});
+      document.querySelector('#add-list').addEventListener('click',()=>{ lists.push({id:crypto.randomUUID(),title:'New list',cards:[]}); save(); render(search.value); document.querySelectorAll('.list-title')[lists.length-1].focus(); say('New list added'); });
+    }
+    function addCard(listEl) { const area=listEl.querySelector('textarea'), title=area.value.trim(); if(!title)return area.focus(); lists.find(l=>l.id===listEl.dataset.listId).cards.push({id:crypto.randomUUID(),color:'',title,meta:''}); save(); render(search.value); say('Card added'); }
+    search.addEventListener('input',e=>render(e.target.value));
+    document.querySelector('#clear-board').addEventListener('click',()=>{if(confirm('Remove all lists and cards?')){lists=[];save();render(search.value);say('Board cleared');}});
+    render();
+  </script>
+</body>
+</html>
