@@ -30,16 +30,23 @@ Run these checks before publishing a Flowboard change.
 
 ## Data safety and portability
 
-- [ ] Export the workspace JSON and verify it is human-readable, has `schemaVersion: 3`, and includes all boards, ordering, and card metadata.
+- [ ] Export the workspace JSON and verify it is human-readable, has `schemaVersion: 4`, and includes all boards, ordering, card metadata, and local collaboration-plan metadata.
 - [ ] Export the active board JSON and card CSV; confirm CSV quotes commas/quotes correctly and includes archived status.
-- [ ] In a clean browser storage area, import a workspace export, choose **Replace workspace**, and verify equivalent boards, list/card ordering, and metadata after reload.
+- [ ] In a clean browser storage area, import a workspace export, choose **Replace workspace**, and verify equivalent boards, list/card ordering, metadata, and collaboration-plan data after reload.
 - [ ] Import a board export, choose **Merge as a new board**, and verify current data remains while the imported board opens.
 - [ ] Select an invalid JSON file and verify the preview rejects it without changing local storage.
 - [ ] Test both cancel and confirm paths for replace import; export current data before confirming replacement.
 - [ ] Delete a card/list and move a card, then use **Undo**; verify the prior state returns. Confirm undo is clearly session-only after a reload.
 - [ ] Make more than five mutations and inspect `flowboard-workspace-backups` in local storage; verify recovery snapshots are bounded.
 - [ ] Simulate a storage write failure in DevTools if practical and verify Flowboard clearly advises exporting/checking browser storage.
-- [ ] Verify schema 1 and 2 workspace envelopes normalize to schema 3 without a crash.
+- [ ] Verify schema 1, 2, and 3 workspace envelopes normalize to schema 4 without a crash.
+
+## Phase 7 local collaboration readiness
+
+- [ ] Open **Collaboration plan** and confirm its local-only/security limitation is visible before controls.
+- [ ] Add/remove planned members, select private/shared/read-only future access, select a local preview member, save, and reload; verify schema-4 metadata persists.
+- [ ] Select a viewer preview and verify a card mutation is blocked with a clear local-only message and no new card is stored.
+- [ ] Confirm `COLLABORATION_ARCHITECTURE.md` remains explicit that no backend/account/realtime behavior exists until configuration and server-side authorization are implemented.
 
 ## Visual and accessibility checks
 

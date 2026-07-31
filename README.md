@@ -28,6 +28,7 @@ A lightweight, local-first project-planning board inspired by kanban tools. It i
 - Keyboard-operable board-action menu (Arrow keys, Home/End, Escape), card details, keyboard card movement, and 44 px coarse-pointer targets.
 - Forced-colors/high-contrast support, 200% reflow safeguards, and reduced-motion support.
 - Browser-local persistence and migration from the original MVP storage format.
+- A per-board **Collaboration plan** that records planned owner/editor/viewer roles and access mode locally, plus a clearly labelled local viewer-preview guard. It does not provide accounts, invitations, server authorization, or sync.
 
 ## Run locally
 
@@ -41,7 +42,7 @@ cd UH-Trello
 
 ## Data and privacy
 
-Flowboard stores data only in this browser using `localStorage`; it has no accounts, collaboration, backend, or cloud synchronization. Export a workspace JSON file before clearing browser-site data or moving browsers. The app uses a versioned `flowboard-workspace` storage envelope (currently schema 3), automatically migrates the original `flowboard-data` MVP format, and keeps up to five rotating browser-local recovery snapshots where storage space permits. Undo history is intentionally session-only. Imports are parsed and validated before the user chooses merge or replacement; invalid data leaves the current workspace untouched. A browser-local backup is helpful recovery—not a substitute for exported copies.
+Flowboard stores data only in this browser using `localStorage`; it has no accounts, collaboration backend, or cloud synchronization. The local **Collaboration plan** is planning metadata and a UI-only viewer preview, not identity or access control. Export a workspace JSON file before clearing browser-site data or moving browsers. The app uses a versioned `flowboard-workspace` storage envelope (currently schema 4), automatically migrates the original `flowboard-data` MVP format, and keeps up to five rotating browser-local recovery snapshots where storage space permits. Undo history is intentionally session-only. Imports are parsed and validated before the user chooses merge or replacement; invalid data leaves the current workspace untouched. A browser-local backup is helpful recovery—not a substitute for exported copies.
 
 ## Project structure
 
@@ -50,6 +51,7 @@ Flowboard stores data only in this browser using `localStorage`; it has no accou
 - `app.js` — state schema, storage migration/validation, rendering, event delegation, and board interactions.
 - `IMPROVEMENT_PLAN.md` — prioritized product and design roadmap.
 - `VALIDATION_CHECKLIST.md` — repeatable acceptance checks.
+- `COLLABORATION_ARCHITECTURE.md` — Phase 7 decision record, safe integration boundary, server-side security requirements, and release gates.
 
 ## Deployment
 
@@ -61,6 +63,6 @@ Flowboard is designed for keyboard and assistive-technology use: use the skip li
 
 The Phase 6 audit used Lighthouse accessibility against the locally served app (score: **100**, no failed audits), plus practical browser checks for dialog focus return, menu keyboard behavior, a keyboard-created persisted card, 200% zoom/reflow, reduced-motion CSS, and desktop visual layout. Browser-local storage and drag-and-drop remain local-only; no screen-reader testing can substitute for testing with a user’s chosen assistive technology.
 
-## Planned next work
+## Collaboration status and next work
 
-Phase 7 is intentionally optional: evaluate an explicit collaboration architecture only if accounts and shared boards become a real requirement. See `IMPROVEMENT_PLAN.md` for the complete roadmap.
+Phase 7 now has a versioned local collaboration-plan data model, a functional local viewer preview, and a documented Supabase-oriented architecture decision. It is **not** real collaboration: this repository has no backend project/configuration or credentials, so accounts, invitations, server-side access control, realtime updates, presence, comments, notifications, offline reconciliation, and cross-browser convergence are blocked. `COLLABORATION_ARCHITECTURE.md` specifies the required configuration, security model, migration flow, and acceptance tests before an authenticated backend implementation should begin.
