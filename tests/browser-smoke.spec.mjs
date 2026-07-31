@@ -38,3 +38,12 @@ test('Google account dialog preserves an explicit local-only boundary', async ({
   await expect(dialog).toBeHidden();
   await expect(account).toBeFocused();
 });
+
+test('compact cloud-copy status fits the responsive top bar', async ({page}) => {
+  await page.setViewportSize({width: 573, height: 500});
+  await page.goto('/UH-Trello/');
+  const status = page.locator('#cloud-status');
+  await status.evaluate(element => { element.textContent = 'Cloud copy · local active'; });
+  const dimensions = await status.evaluate(element => ({clientWidth:element.clientWidth, scrollWidth:element.scrollWidth}));
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+});

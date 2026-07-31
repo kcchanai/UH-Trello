@@ -69,7 +69,10 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
       const result = await cloudAdapter.uploadLocalWorkspace({name:name.value, workspace});
       completed = true; create.textContent = 'Cloud copy created';
       announce(`Cloud workspace “${result.name}” created and verified with ${result.boardCount} board${result.boardCount === 1 ? '' : 's'}. This browser is still using the local original.`);
-      document.querySelector('#cloud-status').textContent = 'Cloud copy created · local active';
+      const cloudStatus = document.querySelector('#cloud-status');
+      cloudStatus.textContent = 'Cloud copy · local active';
+      cloudStatus.title = 'Cloud workspace created and verified. The browser-local original remains active.';
+      cloudStatus.setAttribute('aria-label', cloudStatus.title);
     } catch (error) {
       console.error('Flowboard cloud migration failed.', error); announce(messageFor(error));
       create.disabled = false; backup.disabled = false; name.disabled = false;
