@@ -37,7 +37,11 @@
         <button id="board-menu" class="button button-quiet" type="button" aria-haspopup="menu" aria-expanded="false"><svg><use href="#icon-more"></use></svg><span>Board actions</span></button>
         <div id="board-menu-panel" class="menu-panel" role="menu" hidden>
           <button type="button" role="menuitem" data-action="show-archive">Archived cards</button>
-          <button type="button" role="menuitem" data-action="reset-board"><svg><use href="#icon-trash"></use></svg>Reset board</button>
+          <button type="button" role="menuitem" data-action="export-workspace">Export workspace (JSON)</button>
+          <button type="button" role="menuitem" data-action="import-data">Import data…</button>
+          <button type="button" role="menuitem" data-action="export-board">Export this board (JSON)</button>
+          <button type="button" role="menuitem" data-action="export-csv">Export cards (CSV)</button>
+          <button type="button" role="menuitem" data-action="reset-board"><svg><use href="#icon-trash"></use></svg>Reset workspace</button>
         </div>
       </div>
     </section>
@@ -65,6 +69,16 @@
   </dialog>
   <dialog id="archive-dialog" class="dialog archive-dialog" aria-labelledby="archive-heading"><div class="archive-dialog-card"><header class="card-dialog-header"><div><p class="eyebrow">Recovery</p><h2 id="archive-heading">Archived cards</h2></div><button id="close-archive-dialog" class="dialog-close" type="button" aria-label="Close archived cards"><svg><use href="#icon-close"></use></svg></button></header><div id="archive-list" class="archive-list"></div></div></dialog>
   <dialog id="workspace-dialog" class="dialog workspace-dialog" aria-labelledby="workspace-heading"><div class="archive-dialog-card"><header class="card-dialog-header"><div><p class="eyebrow">My workspace</p><h2 id="workspace-heading">Your boards</h2></div><button id="close-workspace-dialog" class="dialog-close" type="button" aria-label="Close boards"><svg><use href="#icon-close"></use></svg></button></header><div id="workspace-board-list" class="workspace-board-list"></div><form id="new-board-form" class="new-board-form"><label class="field"><span>New board</span><input id="new-board-title" required maxlength="80" placeholder="e.g., Editorial calendar" /></label><label class="field"><span>Start from</span><select id="board-template"><option value="blank">Blank board</option><option value="launch">Website launch</option><option value="tasks">Personal tasks</option></select></label><button class="button button-primary" type="submit">Create board</button></form></div></dialog>
+  <dialog id="import-dialog" class="dialog import-dialog" aria-labelledby="import-heading">
+    <div class="archive-dialog-card">
+      <header class="card-dialog-header"><div><p class="eyebrow">Data portability</p><h2 id="import-heading">Import Flowboard data</h2></div><button id="close-import-dialog" class="dialog-close" type="button" aria-label="Close import"><svg><use href="#icon-close"></use></svg></button></header>
+      <label class="field"><span>Flowboard JSON file</span><input id="import-file" type="file" accept="application/json,.json" /></label>
+      <p id="import-preview" class="import-preview" aria-live="polite">Choose a Flowboard JSON export. Invalid files never change your current workspace.</p>
+      <fieldset id="import-options" class="import-options" hidden><legend>How should this import be applied?</legend><label><input type="radio" name="import-mode" value="merge" checked /> Merge as a new board</label><label><input type="radio" name="import-mode" value="replace" /> Replace this workspace</label></fieldset>
+      <div class="dialog-actions"><button id="apply-import" class="button button-primary" type="button" disabled>Review import</button></div>
+    </div>
+  </dialog>
+  <div class="floating-actions"><button id="undo-action" class="button undo-action" type="button" hidden disabled>Undo</button></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <noscript><p class="noscript">Flowboard needs JavaScript enabled to save and organize cards.</p></noscript>
   <script src="app.js"></script>

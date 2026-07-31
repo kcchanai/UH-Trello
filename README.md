@@ -14,6 +14,11 @@ A lightweight, local-first project-planning board inspired by kanban tools. It i
 - Open an accessible card-detail dialog to edit titles, descriptions, named colored labels, due dates/times, checklists, and local assignees.
 - See concise card metadata: description, checklist progress, due state, labels, and assignee initials.
 - Archive cards and restore them from **Board actions → Archived cards**; permanent deletion remains separate.
+- Undo the most recent common change (including deletes, moves, resets, and imports) while the page stays open.
+- Export the full workspace or active board as readable JSON, and export active-board cards as CSV.
+- Preview valid Flowboard JSON before importing, then merge it as a new board or explicitly replace the workspace.
+- Keep up to five rotating local recovery backups when browser storage allows; storage write failures are surfaced clearly.
+- Reset the workspace only through an explicit custom confirmation that recommends exporting first.
 - Record a local activity history for creation, editing, moves, archive/recovery, and duplication.
 - Duplicate a card from its detail view.
 - Edit the board title.
@@ -33,7 +38,7 @@ cd UH-Trello
 
 ## Data and privacy
 
-Flowboard currently stores data only in this browser using `localStorage`. It has no accounts, collaboration, backend, or cloud synchronization. Clearing browser-site data clears Flowboard data. The app uses a versioned `flowboard-workspace` storage envelope and automatically migrates the original `flowboard-data` MVP format when it finds it.
+Flowboard stores data only in this browser using `localStorage`; it has no accounts, collaboration, backend, or cloud synchronization. Export a workspace JSON file before clearing browser-site data or moving browsers. The app uses a versioned `flowboard-workspace` storage envelope (currently schema 3), automatically migrates the original `flowboard-data` MVP format, and keeps up to five rotating browser-local recovery snapshots where storage space permits. Undo history is intentionally session-only. Imports are parsed and validated before the user chooses merge or replacement; invalid data leaves the current workspace untouched. A browser-local backup is helpful recovery—not a substitute for exported copies.
 
 ## Project structure
 
@@ -49,4 +54,4 @@ GitHub Pages serves `index.html` from the `main` branch root. After pushing chan
 
 ## Planned next work
 
-The next roadmap milestone is precise board organization: insertion-aware card/list reordering, touch and keyboard movement, and expanded filters. See `IMPROVEMENT_PLAN.md` for the complete phased plan.
+The next roadmap milestone is the formal accessibility and inclusive-use audit: automated and manual checks for keyboard, screen-reader, high-contrast, zoom, and reduced-motion behavior. See `IMPROVEMENT_PLAN.md` for the complete phased plan.

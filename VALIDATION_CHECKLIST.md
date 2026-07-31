@@ -26,7 +26,20 @@ Run these checks before publishing a Flowboard change.
 - [ ] Archive a card, confirm it leaves the active board, then restore it through **Board actions → Archived cards**.
 - [ ] Duplicate a card and confirm the copy persists.
 - [ ] Open and close the card dialog with the close control and Escape; focus returns to the triggering card.
-- [ ] Reset the board through Board actions and verify the custom dialog.
+- [ ] Reset the workspace through Board actions and verify the custom dialog, export-first guidance, and Undo behavior.
+
+## Data safety and portability
+
+- [ ] Export the workspace JSON and verify it is human-readable, has `schemaVersion: 3`, and includes all boards, ordering, and card metadata.
+- [ ] Export the active board JSON and card CSV; confirm CSV quotes commas/quotes correctly and includes archived status.
+- [ ] In a clean browser storage area, import a workspace export, choose **Replace workspace**, and verify equivalent boards, list/card ordering, and metadata after reload.
+- [ ] Import a board export, choose **Merge as a new board**, and verify current data remains while the imported board opens.
+- [ ] Select an invalid JSON file and verify the preview rejects it without changing local storage.
+- [ ] Test both cancel and confirm paths for replace import; export current data before confirming replacement.
+- [ ] Delete a card/list and move a card, then use **Undo**; verify the prior state returns. Confirm undo is clearly session-only after a reload.
+- [ ] Make more than five mutations and inspect `flowboard-workspace-backups` in local storage; verify recovery snapshots are bounded.
+- [ ] Simulate a storage write failure in DevTools if practical and verify Flowboard clearly advises exporting/checking browser storage.
+- [ ] Verify schema 1 and 2 workspace envelopes normalize to schema 3 without a crash.
 
 ## Visual and accessibility checks
 
