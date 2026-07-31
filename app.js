@@ -1,191 +1,59 @@
 (() => {
   'use strict';
+  const STORAGE_KEY = 'flowboard-workspace', LEGACY_KEY = 'flowboard-data', SCHEMA_VERSION = 2;
+  const $ = (s, p = document) => p.querySelector(s), uid = () => crypto.randomUUID?.() || `fb-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const now = () => new Date().toISOString(), esc = (v = '') => String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const icon = n => `<svg aria-hidden="true"><use href="#icon-${n}"></use></svg>`;
+  const COLORS = ['green','purple','orange','red'];
+  const seedLists = [{title:'Ideas',cards:[['purple','Research competitor landing pages','💬 3'],['orange','Collect customer testimonials','📎 2'],['','Plan launch announcement','']]},{title:'To do',cards:[['red','Write homepage copy','📅 Jul 31'],['orange','Create social media graphics','📎 4'],['','Set up analytics events','']]},{title:'In progress',cards:[['purple','Design responsive homepage','💬 5'],['','Build email signup form','📅 Aug 2']]},{title:'Done',cards:[['','Choose brand colour palette','✓ Complete'],['','Set project goals','✓ Complete']]}];
+  let state, searchTerm = '', draggedCardId = null, pendingAction = null, openCardId = null, dialogTrigger = null, toastTimer;
 
-  const STORAGE_KEY = 'flowboard-workspace';
-  const LEGACY_KEY = 'flowboard-data';
-  const SCHEMA_VERSION = 1;
-  const $ = (selector, parent = document) => parent.querySelector(selector);
-  const uid = () => (crypto?.randomUUID?.() || `fb-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  const now = () => new Date().toISOString();
-  const esc = (value = '') => String(value).replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char]));
-  const icon = name => `<svg aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
-  const allowedColors = new Set(['green', 'purple', 'orange', 'red']);
+  const cleanColor = color => COLORS.includes(color) ? color : 'green';
+  const activity = text => ({ id:uid(), text, at:now() });
+  const makeCard = (title, color = '', meta = '') => ({ id:uid(), title:String(title || 'Untitled card'), description:'', labels:color ? [{id:uid(),color:cleanColor(color),name:''}] : [], dueDate:'', dueTime:'', checklist:[], assignees:[], meta:String(meta || ''), activity:[activity('Card created')], createdAt:now(), updatedAt:now(), archived:false, archivedAt:'' });
+  const makeList = (title, cards = []) => ({ id:uid(), title:String(title || 'Untitled list'), cards, createdAt:now(), updatedAt:now(), archived:false });
+  const makeBoard = () => ({ id:uid(), title:'Website Launch', lists:seedLists.map(l => makeList(l.title, l.cards.map(c => makeCard(c[1],c[0],c[2])))), createdAt:now(), updatedAt:now(), archived:false });
+  const makeWorkspace = () => { const board = makeBoard(); return {schemaVersion:SCHEMA_VERSION,activeBoardId:board.id,boards:[board],preferences:{theme:'system'}}; };
+  function normalizeLabel(label) { return typeof label === 'string' ? {id:uid(),color:cleanColor(label),name:''} : {id:label?.id || uid(),color:cleanColor(label?.color),name:String(label?.name || '')}; }
+  function normalizeCard(card) { return { id:card?.id || uid(), title:String(card?.title || 'Untitled card'), description:String(card?.description || ''), labels:Array.isArray(card?.labels) ? card.labels.map(normalizeLabel) : [], dueDate:/^\d{4}-\d{2}-\d{2}$/.test(card?.dueDate || '') ? card.dueDate : '', dueTime:/^\d{2}:\d{2}$/.test(card?.dueTime || '') ? card.dueTime : '', checklist:Array.isArray(card?.checklist) ? card.checklist.map(item => ({id:item?.id || uid(),text:String(item?.text || ''),done:Boolean(item?.done)})) : [], assignees:Array.isArray(card?.assignees) ? card.assignees.map(String).filter(Boolean).slice(0,8) : [], meta:String(card?.meta || ''), activity:Array.isArray(card?.activity) ? card.activity.map(item => ({id:item?.id || uid(),text:String(item?.text || ''),at:item?.at || now()})).slice(-25) : [activity('Card created')], createdAt:card?.createdAt || now(),updatedAt:card?.updatedAt || now(),archived:Boolean(card?.archived),archivedAt:card?.archivedAt || '' }; }
+  function normalizeWorkspace(data) { const boards = (data.boards || []).map(b => ({id:b?.id || uid(),title:String(b?.title || 'Untitled board'),lists:(b?.lists || []).map(l => makeList(l?.title,(l?.cards || []).map(normalizeCard))),createdAt:b?.createdAt || now(),updatedAt:b?.updatedAt || now(),archived:Boolean(b?.archived)})); const usable = boards.length ? boards : [makeBoard()]; return {schemaVersion:SCHEMA_VERSION,activeBoardId:usable.some(b => b.id === data.activeBoardId) ? data.activeBoardId : usable[0].id,boards:usable,preferences:{theme:['light','dark','system'].includes(data.preferences?.theme) ? data.preferences.theme : 'system'}}; }
+  function validWorkspace(data) { return data && (data.schemaVersion === 1 || data.schemaVersion === 2) && Array.isArray(data.boards); }
+  function migrateLegacy(data) { if (!Array.isArray(data)) return null; const board = {id:uid(),title:'Website Launch',lists:data.map(l => makeList(l?.title,(l?.cards || []).map(c => makeCard(c?.title,c?.color,c?.meta)))),createdAt:now(),updatedAt:now(),archived:false}; return {schemaVersion:SCHEMA_VERSION,activeBoardId:board.id,boards:[board],preferences:{theme:'system'}}; }
+  function loadState() { try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { const parsed = JSON.parse(saved); if (validWorkspace(parsed)) { const upgraded = normalizeWorkspace(parsed); persist(upgraded,false); if (parsed.schemaVersion !== SCHEMA_VERSION) queueMicrotask(() => say('Your board was upgraded safely.')); return upgraded; } throw Error('Unsupported workspace'); } const legacy = localStorage.getItem(LEGACY_KEY); if (legacy) { const migrated = migrateLegacy(JSON.parse(legacy)); if (migrated) { persist(migrated,false); localStorage.removeItem(LEGACY_KEY); return migrated; } } } catch (error) { console.warn('Flowboard could not restore saved data.',error); queueMicrotask(() => say('Saved data could not be read. A new board was created.')); } const fresh = makeWorkspace(); persist(fresh,false); return fresh; }
+  function persist(next = state, announce = true) { try { localStorage.setItem(STORAGE_KEY,JSON.stringify(next)); if (announce) say('Saved locally'); return true; } catch (error) { console.error('Flowboard could not save data.',error); say('Could not save locally — check browser storage.'); return false; } }
+  const board = () => state.boards.find(b => b.id === state.activeBoardId) || state.boards[0];
+  const findList = id => board().lists.find(l => l.id === id);
+  function findCard(id) { for (const list of board().lists) { const card = list.cards.find(c => c.id === id); if (card) return {card,list}; } return null; }
+  function record(card,text) { card.activity.push(activity(text)); card.activity = card.activity.slice(-25); card.updatedAt = now(); }
+  function mutate(message, fn) { fn(); board().updatedAt = now(); persist(); render(); if (message) say(message); }
+  function say(message) { const toast=$('#toast'); toast.textContent=message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),1900); }
+  function applyTheme() { const dark=state.preferences.theme === 'dark' || (state.preferences.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches); document.documentElement.dataset.theme=dark?'dark':'light'; $('meta[name="theme-color"]').content=dark?'#182d54':'#0f6cbd'; const toggle=$('#theme-toggle'); toggle.innerHTML=icon(dark?'sun':'moon'); toggle.setAttribute('aria-label',`Switch to ${dark?'light':'dark'} theme`); }
+  function dueInfo(card) { if (!card.dueDate) return ''; const today = new Date().toISOString().slice(0,10), completed = card.checklist.length && card.checklist.every(item=>item.done); const date = new Date(`${card.dueDate}T${card.dueTime || '23:59'}`); const stateName = completed ? 'complete' : card.dueDate < today ? 'overdue' : card.dueDate === today ? 'today' : 'upcoming'; const label = `${stateName === 'overdue'?'Overdue: ':stateName === 'today'?'Due today: ':'Due: '}${date.toLocaleDateString(undefined,{month:'short',day:'numeric'})}${card.dueTime ? `, ${card.dueTime}` : ''}`; return `<span class="meta-chip due ${stateName}" aria-label="${esc(label)}">${esc(label)}</span>`; }
+  const initials = name => name.trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
+  function cardMarkup(card) { const labels=card.labels.length?`<div class="labels">${card.labels.map(l=>`<span class="label ${l.color}" title="${esc(l.name || `${l.color} label`)}">${l.name?esc(l.name):''}</span>`).join('')}</div>`:''; const done=card.checklist.filter(i=>i.done).length; const meta=[card.description?'<span class="meta-chip" aria-label="Has description">Description</span>':'',card.checklist.length?`<span class="meta-chip" aria-label="Checklist ${done} of ${card.checklist.length} complete">Checklist ${done}/${card.checklist.length}</span>`:'',dueInfo(card),card.meta?`<span class="meta-chip">${esc(card.meta)}</span>`:''].filter(Boolean).join(''); const people=card.assignees.length?`<div class="assignees" aria-label="Assigned to ${esc(card.assignees.join(', '))}">${card.assignees.slice(0,3).map(n=>`<span class="assignee" title="${esc(n)}">${esc(initials(n))}</span>`).join('')}</div>`:''; return `<article class="card" draggable="true" tabindex="0" data-card-id="${card.id}" aria-label="Card: ${esc(card.title)}">${labels}<span class="card-title">${esc(card.title)}</span><button class="card-delete" type="button" data-action="delete-card" aria-label="Delete ${esc(card.title)}" title="Delete card">${icon('close')}</button>${meta?`<div class="card-meta">${meta}${people}</div>`:people}</article>`; }
+  function searchable(card) { return [card.title,card.description,...card.labels.map(l=>l.name),...card.checklist.map(i=>i.text),...card.assignees].join(' ').toLowerCase().includes(searchTerm.toLowerCase()); }
+  function listMarkup(list) { const cards=list.cards.filter(c=>!c.archived&&searchable(c)); return `<section class="list" data-list-id="${list.id}"><div class="list-head"><input class="list-title" value="${esc(list.title)}" aria-label="List title" /><button class="list-menu" type="button" data-action="delete-list" aria-label="Delete ${esc(list.title)}" title="Delete list">${icon('more')}</button></div><div class="cards" aria-label="Cards in ${esc(list.title)}">${cards.length?cards.map(cardMarkup).join(''):`<p class="empty">${searchTerm?'No matching cards':'No cards yet'}</p>`}</div><div class="composer" hidden><textarea placeholder="Enter a title for this card…" aria-label="New card title"></textarea><div class="composer-actions"><button class="button button-primary" type="button" data-action="save-card">Add card</button><button class="composer-cancel" type="button" data-action="cancel-card" aria-label="Cancel adding card">${icon('close')}</button></div></div><button class="add-card" type="button" data-action="open-composer">${icon('plus')}Add a card</button></section>`; }
+  function render() { $('#board-title').value=board().title; $('#board').innerHTML=board().lists.filter(l=>!l.archived).map(listMarkup).join('')+`<button id="add-list" class="add-list" type="button">${icon('plus')}Add another list</button>`; const count=board().lists.flatMap(l=>l.cards).filter(c=>!c.archived&&searchable(c)).length; $('#search-count').textContent=searchTerm?`${count} ${count===1?'card':'cards'} found`:''; $('#clear-search').hidden=!searchTerm; }
+  function openComposer(listEl) { $('.composer',listEl).hidden=false; $('.add-card',listEl).hidden=true; $('textarea',listEl).focus(); }
+  function closeComposer(listEl) { $('.composer',listEl).hidden=true; $('.add-card',listEl).hidden=false; $('textarea',listEl).value=''; }
+  function addCard(listEl) { const title=$('textarea',listEl).value.trim(); if (!title) return $('textarea',listEl).focus(); mutate('Card added',()=>findList(listEl.dataset.listId).cards.push(makeCard(title))); }
+  function requestConfirmation(title,message,confirmLabel,action) { pendingAction=action; $('#confirm-title').textContent=title; $('#confirm-message').textContent=message; $('#confirm-action').textContent=confirmLabel; $('#confirm-dialog').showModal(); }
+  function labelEditor(labels) { $('#label-editor').innerHTML=labels.length?labels.map(label=>`<div class="label-row" data-label-id="${label.id}"><select aria-label="Label color"><option value="green" ${label.color==='green'?'selected':''}>Green</option><option value="purple" ${label.color==='purple'?'selected':''}>Purple</option><option value="orange" ${label.color==='orange'?'selected':''}>Orange</option><option value="red" ${label.color==='red'?'selected':''}>Red</option></select><input aria-label="Label name" value="${esc(label.name)}" placeholder="Label name" maxlength="40" /><button type="button" class="dialog-close" data-action="remove-label" aria-label="Remove label">${icon('close')}</button></div>`).join(''):'<p class="empty compact">No labels yet.</p>'; }
+  function checklistEditor(items) { $('#checklist-editor').innerHTML=items.length?items.map(item=>`<div class="check-item" data-item-id="${item.id}"><input type="checkbox" ${item.done?'checked':''} aria-label="Complete checklist item" /><input value="${esc(item.text)}" aria-label="Checklist item" placeholder="Checklist item" /><button type="button" class="dialog-close" data-action="remove-checklist-item" aria-label="Remove checklist item">${icon('close')}</button></div>`).join(''):'<p class="empty compact">No checklist items yet.</p>'; $('#checklist-progress').textContent=items.length?`${items.filter(i=>i.done).length}/${items.length}`:''; }
+  function renderActivity(items) { $('#activity-log').innerHTML=items.length?[...items].reverse().map(item=>`<li><span>${esc(item.text)}</span><time datetime="${item.at}">${new Date(item.at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</time></li>`).join(''):'<li>No activity yet.</li>'; }
+  function openCard(cardId, trigger) { const found=findCard(cardId); if (!found) return; openCardId=cardId; dialogTrigger=trigger; const {card}=found; $('#card-dialog-heading').textContent=card.title; $('#card-title-input').value=card.title; $('#card-description-input').value=card.description; $('#due-date-input').value=card.dueDate; $('#due-time-input').value=card.dueTime; $('#assignees-input').value=card.assignees.join(', '); labelEditor(card.labels); checklistEditor(card.checklist); renderActivity(card.activity); $('#archive-card').textContent=card.archived?'Restore':'Archive'; $('#card-dialog').showModal(); $('#card-title-input').focus(); }
+  function closeCard() { $('#card-dialog').close(); openCardId=null; requestAnimationFrame(()=>dialogTrigger?.focus()); }
+  function dialogCard() { return findCard(openCardId)?.card; }
+  function saveDetails() { const card=dialogCard(); if (!card) return; const title=$('#card-title-input').value.trim(); if (!title) return $('#card-title-input').focus(); const oldTitle=card.title; mutate('Card saved',()=>{ card.title=title; card.description=$('#card-description-input').value.trim(); card.dueDate=$('#due-date-input').value; card.dueTime=$('#due-time-input').value; card.assignees=$('#assignees-input').value.split(',').map(n=>n.trim()).filter(Boolean).slice(0,8); card.labels=[...document.querySelectorAll('#label-editor .label-row')].map(row=>({id:row.dataset.labelId,color:cleanColor($('select',row).value),name:$('input',row).value.trim()})); card.checklist=[...document.querySelectorAll('#checklist-editor .check-item')].map(row=>({id:row.dataset.itemId,text:$('input[type="text"], input:not([type])',row).value.trim(),done:$('input[type="checkbox"]',row).checked})).filter(item=>item.text); if (oldTitle!==title) record(card,'Renamed card'); record(card,'Updated card details'); }); closeCard(); }
+  function showArchive() { const archived=board().lists.flatMap(list=>list.cards.filter(card=>card.archived).map(card=>({card,list}))); $('#archive-list').innerHTML=archived.length?archived.map(({card,list})=>`<div class="archive-item"><div><strong>${esc(card.title)}</strong><span>Archived from ${esc(list.title)}</span></div><button class="button button-primary" type="button" data-action="restore-card" data-card-id="${card.id}">Restore</button></div>`).join(''):'<p class="empty">No archived cards.</p>'; $('#archive-dialog').showModal(); }
 
-  const seedLists = [
-    { title:'Ideas', cards:[['purple', 'Research competitor landing pages', '💬 3'], ['orange', 'Collect customer testimonials', '📎 2'], ['', 'Plan launch announcement', '']] },
-    { title:'To do', cards:[['red', 'Write homepage copy', '📅 Jul 31'], ['orange', 'Create social media graphics', '📎 4'], ['', 'Set up analytics events', '']] },
-    { title:'In progress', cards:[['purple', 'Design responsive homepage', '💬 5'], ['', 'Build email signup form', '📅 Aug 2']] },
-    { title:'Done', cards:[['', 'Choose brand colour palette', '✓ Complete'], ['', 'Set project goals', '✓ Complete']] }
-  ];
-
-  function makeCard(title, color = '', meta = '') {
-    return { id:uid(), title:String(title || 'Untitled card'), description:'', labels:color ? [normalizeColor(color)] : [], meta:String(meta || ''), createdAt:now(), updatedAt:now(), archived:false };
-  }
-  function makeList(title, cards = []) { return { id:uid(), title:String(title || 'Untitled list'), cards, createdAt:now(), updatedAt:now(), archived:false }; }
-  function makeSeedBoard() {
-    return { id:uid(), title:'Website Launch', lists:seedLists.map(list => makeList(list.title, list.cards.map(card => makeCard(card[1], card[0], card[2])))), createdAt:now(), updatedAt:now(), archived:false };
-  }
-  function makeWorkspace() { const board = makeSeedBoard(); return { schemaVersion:SCHEMA_VERSION, activeBoardId:board.id, boards:[board], preferences:{ theme:'system' } }; }
-  function normalizeColor(color) { return allowedColors.has(color) ? color : ''; }
-  function validCard(card) { return card && typeof card.id === 'string' && typeof card.title === 'string'; }
-  function normalizeCard(card) {
-    return { id:card.id || uid(), title:String(card.title || 'Untitled card'), description:String(card.description || ''), labels:Array.isArray(card.labels) ? card.labels.map(normalizeColor).filter(Boolean) : (card.color ? [normalizeColor(card.color)].filter(Boolean) : []), meta:String(card.meta || ''), createdAt:card.createdAt || now(), updatedAt:card.updatedAt || now(), archived:Boolean(card.archived) };
-  }
-  function validWorkspace(data) { return data && data.schemaVersion === SCHEMA_VERSION && Array.isArray(data.boards) && data.boards.length && data.boards.every(board => board && typeof board.id === 'string' && typeof board.title === 'string' && Array.isArray(board.lists) && board.lists.every(list => list && typeof list.id === 'string' && typeof list.title === 'string' && Array.isArray(list.cards) && list.cards.every(validCard))); }
-  function normalizeWorkspace(data) {
-    const boards = data.boards.map(board => ({ id:board.id || uid(), title:String(board.title || 'Untitled board'), lists:board.lists.map(list => makeList(list.title, list.cards.map(normalizeCard))), createdAt:board.createdAt || now(), updatedAt:board.updatedAt || now(), archived:Boolean(board.archived) }));
-    const activeBoardId = boards.some(board => board.id === data.activeBoardId) ? data.activeBoardId : boards[0].id;
-    return { schemaVersion:SCHEMA_VERSION, activeBoardId, boards, preferences:{ theme:['light','dark','system'].includes(data.preferences?.theme) ? data.preferences.theme : 'system' } };
-  }
-  function migrateLegacy(data) {
-    if (!Array.isArray(data)) return null;
-    const board = { id:uid(), title:'Website Launch', lists:data.map(list => makeList(list?.title, Array.isArray(list?.cards) ? list.cards.map(card => makeCard(card?.title, card?.color, card?.meta)) : [])), createdAt:now(), updatedAt:now(), archived:false };
-    return { schemaVersion:SCHEMA_VERSION, activeBoardId:board.id, boards:[board], preferences:{ theme:'system' } };
-  }
-
-  let storageAvailable = true;
-  let state;
-  let searchTerm = '';
-  let draggedCardId = null;
-  let pendingAction = null;
-  let toastTimer;
-
-  function loadState() {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (validWorkspace(parsed)) return normalizeWorkspace(parsed);
-        throw new Error('Unsupported workspace schema');
-      }
-      const legacy = localStorage.getItem(LEGACY_KEY);
-      if (legacy) {
-        const migrated = migrateLegacy(JSON.parse(legacy));
-        if (migrated) {
-          persist(migrated, false);
-          localStorage.removeItem(LEGACY_KEY);
-          queueMicrotask(() => say('Your existing board was safely upgraded.'));
-          return migrated;
-        }
-      }
-    } catch (error) {
-      console.warn('Flowboard could not restore saved data.', error);
-      queueMicrotask(() => say('Saved data could not be read. A new local board was created.'));
-    }
-    const fresh = makeWorkspace();
-    persist(fresh, false);
-    return fresh;
-  }
-  function persist(nextState = state, announce = true) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-      storageAvailable = true;
-      if (announce) say('Saved locally');
-      return true;
-    } catch (error) {
-      storageAvailable = false;
-      console.error('Flowboard could not save data.', error);
-      say('Could not save locally — check browser storage.');
-      return false;
-    }
-  }
-  function activeBoard() { return state.boards.find(board => board.id === state.activeBoardId) || state.boards[0]; }
-  function findList(listId) { return activeBoard().lists.find(list => list.id === listId); }
-  function findCard(cardId) { for (const list of activeBoard().lists) { const card = list.cards.find(item => item.id === cardId); if (card) return { card, list }; } return null; }
-  function mutate(message, mutation) { mutation(); activeBoard().updatedAt = now(); persist(); render(); if (message) say(message); }
-  function say(message) { const toast = $('#toast'); toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 1900); }
-
-  function applyTheme() {
-    const preference = state.preferences.theme;
-    const isDark = preference === 'dark' || (preference === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
-    $('meta[name="theme-color"]').content = isDark ? '#182d54' : '#0f6cbd';
-    const toggle = $('#theme-toggle');
-    toggle.innerHTML = icon(isDark ? 'sun' : 'moon');
-    toggle.setAttribute('aria-label', `Switch to ${isDark ? 'light' : 'dark'} theme`);
-    toggle.title = toggle.getAttribute('aria-label');
-  }
-  function cardMarkup(card) {
-    const labels = card.labels.length ? `<div class="labels">${card.labels.map(color => `<span class="label ${color}" aria-label="${color} label"></span>`).join('')}</div>` : '';
-    const meta = card.meta ? `<div class="card-meta"><span class="meta-chip ${card.meta.includes('Complete') ? 'complete' : ''}">${esc(card.meta)}</span></div>` : '';
-    return `<article class="card" draggable="true" data-card-id="${card.id}">${labels}<span class="card-title">${esc(card.title)}</span><button class="card-delete" type="button" data-action="delete-card" aria-label="Delete ${esc(card.title)}" title="Delete card">${icon('close')}</button>${meta}</article>`;
-  }
-  function listMarkup(list) {
-    const cards = list.cards.filter(card => !card.archived && card.title.toLowerCase().includes(searchTerm.toLowerCase()));
-    const empty = searchTerm ? 'No matching cards' : 'No cards yet';
-    return `<section class="list" data-list-id="${list.id}"><div class="list-head"><input class="list-title" value="${esc(list.title)}" aria-label="List title" /><button class="list-menu" type="button" data-action="delete-list" aria-label="Delete ${esc(list.title)}" title="Delete list">${icon('more')}</button></div><div class="cards" aria-label="Cards in ${esc(list.title)}">${cards.length ? cards.map(cardMarkup).join('') : `<p class="empty">${empty}</p>`}</div><div class="composer" hidden><textarea placeholder="Enter a title for this card…" aria-label="New card title"></textarea><div class="composer-actions"><button class="button button-primary" type="button" data-action="save-card">Add card</button><button class="composer-cancel" type="button" data-action="cancel-card" aria-label="Cancel adding card">${icon('close')}</button></div></div><button class="add-card" type="button" data-action="open-composer">${icon('plus')}Add a card</button></section>`;
-  }
-  function render() {
-    const board = activeBoard();
-    $('#board-title').value = board.title;
-    $('#board').innerHTML = board.lists.filter(list => !list.archived).map(listMarkup).join('') + `<button id="add-list" class="add-list" type="button">${icon('plus')}Add another list</button>`;
-    const count = board.lists.flatMap(list => list.cards).filter(card => !card.archived && card.title.toLowerCase().includes(searchTerm.toLowerCase())).length;
-    const counter = $('#search-count');
-    counter.textContent = searchTerm ? `${count} ${count === 1 ? 'card' : 'cards'} found` : '';
-    $('#clear-search').hidden = !searchTerm;
-  }
-
-  function openComposer(listElement) { const composer = $('.composer', listElement); composer.hidden = false; $('.add-card', listElement).hidden = true; $('textarea', composer).focus(); }
-  function closeComposer(listElement) { const composer = $('.composer', listElement); composer.hidden = true; $('.add-card', listElement).hidden = false; $('textarea', composer).value = ''; }
-  function addCard(listElement) { const title = $('textarea', listElement).value.trim(); if (!title) { $('textarea', listElement).focus(); return; } mutate('Card added', () => findList(listElement.dataset.listId).cards.push(makeCard(title))); }
-  function requestConfirmation(title, message, confirmLabel, action) { pendingAction = action; $('#confirm-title').textContent = title; $('#confirm-message').textContent = message; $('#confirm-action').textContent = confirmLabel; $('#confirm-dialog').showModal(); }
-
-  function handleBoardClick(event) {
-    const action = event.target.closest('[data-action]')?.dataset.action;
-    if (!action) return;
-    const listElement = event.target.closest('.list');
-    if (action === 'open-composer') openComposer(listElement);
-    if (action === 'cancel-card') closeComposer(listElement);
-    if (action === 'save-card') addCard(listElement);
-    if (action === 'delete-card') {
-      const cardElement = event.target.closest('.card');
-      const found = findCard(cardElement.dataset.cardId);
-      requestConfirmation('Delete this card?', `“${found.card.title}” will be permanently removed from this local board.`, 'Delete card', () => mutate('Card deleted', () => { found.list.cards = found.list.cards.filter(card => card.id !== found.card.id); }));
-    }
-    if (action === 'delete-list') {
-      const list = findList(listElement.dataset.listId);
-      requestConfirmation('Delete this list?', `“${list.title}” and its ${list.cards.length} card${list.cards.length === 1 ? '' : 's'} will be permanently removed.`, 'Delete list', () => mutate('List deleted', () => { activeBoard().lists = activeBoard().lists.filter(item => item.id !== list.id); }));
-    }
-  }
-
-  $('#board').addEventListener('click', handleBoardClick);
-  $('#board').addEventListener('change', event => {
-    if (!event.target.matches('.list-title')) return;
-    const list = findList(event.target.closest('.list').dataset.listId);
-    const nextTitle = event.target.value.trim() || 'Untitled list';
-    if (nextTitle !== list.title) mutate('List renamed', () => { list.title = nextTitle; list.updatedAt = now(); });
-  });
-  $('#board').addEventListener('keydown', event => {
-    if (event.target.matches('.composer textarea')) {
-      if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); addCard(event.target.closest('.list')); }
-      if (event.key === 'Escape') closeComposer(event.target.closest('.list'));
-    }
-  });
-  $('#board').addEventListener('dragstart', event => { const card = event.target.closest('.card'); if (!card) return; draggedCardId = card.dataset.cardId; card.classList.add('dragging'); event.dataTransfer.effectAllowed = 'move'; });
-  $('#board').addEventListener('dragend', event => { event.target.closest('.card')?.classList.remove('dragging'); document.querySelectorAll('.drop-target').forEach(item => item.classList.remove('drop-target')); draggedCardId = null; });
-  $('#board').addEventListener('dragover', event => { const cards = event.target.closest('.cards'); if (!cards || !draggedCardId) return; event.preventDefault(); cards.closest('.list').classList.add('drop-target'); event.dataTransfer.dropEffect = 'move'; });
-  $('#board').addEventListener('dragleave', event => event.target.closest('.list')?.classList.remove('drop-target'));
-  $('#board').addEventListener('drop', event => {
-    const listElement = event.target.closest('.list'); if (!listElement || !draggedCardId) return; event.preventDefault();
-    const found = findCard(draggedCardId); const destination = findList(listElement.dataset.listId); if (!found || !destination) return;
-    mutate('Card moved', () => { found.list.cards = found.list.cards.filter(card => card.id !== found.card.id); destination.cards.push(found.card); });
-  });
-
-  document.addEventListener('click', event => {
-    if (event.target.closest('#add-list')) { mutate('New list added', () => activeBoard().lists.push(makeList('New list'))); requestAnimationFrame(() => $('#board .list:last-of-type .list-title')?.focus()); }
-    if (event.target.closest('#theme-toggle')) { state.preferences.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; persist(); applyTheme(); say(`${state.preferences.theme === 'dark' ? 'Dark' : 'Light'} theme enabled`); }
-    if (event.target.closest('#board-menu')) { const panel = $('#board-menu-panel'); const open = panel.hidden; panel.hidden = !open; $('#board-menu').setAttribute('aria-expanded', String(open)); }
-    if (event.target.closest('[data-action="reset-board"]')) { $('#board-menu-panel').hidden = true; $('#board-menu').setAttribute('aria-expanded', 'false'); requestConfirmation('Reset this board?', 'All lists and cards will be replaced with the original sample board.', 'Reset board', () => { const replacement = makeSeedBoard(); replacement.id = activeBoard().id; replacement.title = activeBoard().title; mutate('Board reset', () => { state.boards = [replacement]; state.activeBoardId = replacement.id; }); }); }
-    if (!event.target.closest('.board-actions')) { $('#board-menu-panel').hidden = true; $('#board-menu').setAttribute('aria-expanded', 'false'); }
-  });
-  $('#board-title').addEventListener('change', event => { const title = event.target.value.trim() || 'Untitled board'; if (title !== activeBoard().title) mutate('Board renamed', () => { activeBoard().title = title; document.title = `${title} — Flowboard`; }); });
-  $('#search').addEventListener('input', event => { searchTerm = event.target.value.trim(); render(); });
-  $('#clear-search').addEventListener('click', () => { $('#search').value = ''; searchTerm = ''; render(); $('#search').focus(); });
-  $('#confirm-dialog').addEventListener('close', () => { if ($('#confirm-dialog').returnValue === 'confirm' && pendingAction) pendingAction(); pendingAction = null; });
-  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (state.preferences.theme === 'system') applyTheme(); });
-
-  state = loadState();
-  applyTheme();
-  render();
-  if (!storageAvailable) say('Local storage is unavailable. Changes may not persist.');
+  $('#board').addEventListener('click',event=>{ const action=event.target.closest('[data-action]')?.dataset.action, listEl=event.target.closest('.list'); if (action==='open-composer') return openComposer(listEl); if(action==='cancel-card')return closeComposer(listEl); if(action==='save-card')return addCard(listEl); if(action==='delete-card'){const found=findCard(event.target.closest('.card').dataset.cardId); return requestConfirmation('Delete this card?',`“${found.card.title}” will be permanently removed.`,'Delete card',()=>mutate('Card deleted',()=>found.list.cards=found.list.cards.filter(c=>c.id!==found.card.id)));} if(action==='delete-list'){const list=findList(listEl.dataset.listId); return requestConfirmation('Delete this list?',`“${list.title}” and its ${list.cards.length} cards will be permanently removed.`,'Delete list',()=>mutate('List deleted',()=>board().lists=board().lists.filter(l=>l.id!==list.id)));} const cardEl=event.target.closest('.card'); if(cardEl) openCard(cardEl.dataset.cardId,cardEl); });
+  $('#board').addEventListener('keydown',event=>{ if(event.target.matches('.composer textarea')){if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addCard(event.target.closest('.list'));}if(event.key==='Escape')closeComposer(event.target.closest('.list'));} if(event.target.matches('.card')&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openCard(event.target.dataset.cardId,event.target);}});
+  $('#board').addEventListener('change',event=>{if(event.target.matches('.list-title')){const list=findList(event.target.closest('.list').dataset.listId),title=event.target.value.trim()||'Untitled list';if(title!==list.title)mutate('List renamed',()=>{list.title=title;list.updatedAt=now();});}});
+  $('#board').addEventListener('dragstart',e=>{const card=e.target.closest('.card');if(!card)return;draggedCardId=card.dataset.cardId;card.classList.add('dragging');e.dataTransfer.effectAllowed='move';}); $('#board').addEventListener('dragend',e=>{e.target.closest('.card')?.classList.remove('dragging');document.querySelectorAll('.drop-target').forEach(el=>el.classList.remove('drop-target'));draggedCardId=null;}); $('#board').addEventListener('dragover',e=>{const cards=e.target.closest('.cards');if(!cards||!draggedCardId)return;e.preventDefault();cards.closest('.list').classList.add('drop-target');}); $('#board').addEventListener('drop',e=>{const listEl=e.target.closest('.list');if(!listEl||!draggedCardId)return;e.preventDefault();const found=findCard(draggedCardId),destination=findList(listEl.dataset.listId);if(!found||!destination)return;mutate('Card moved',()=>{found.list.cards=found.list.cards.filter(c=>c.id!==found.card.id);destination.cards.push(found.card);record(found.card,`Moved to ${destination.title}`);});});
+  document.addEventListener('click',event=>{if(event.target.closest('#add-list')){mutate('New list added',()=>board().lists.push(makeList('New list')));return requestAnimationFrame(()=>$('#board .list:last-of-type .list-title')?.focus());} if(event.target.closest('#theme-toggle')){state.preferences.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';persist();applyTheme();return say(`${state.preferences.theme==='dark'?'Dark':'Light'} theme enabled`);} if(event.target.closest('#board-menu')){const panel=$('#board-menu-panel'),open=panel.hidden;panel.hidden=!open;$('#board-menu').setAttribute('aria-expanded',String(open));return;} if(event.target.closest('[data-action="show-archive"]')){$('#board-menu-panel').hidden=true;return showArchive();} if(event.target.closest('[data-action="reset-board"]')){return requestConfirmation('Reset this board?','All lists and cards will be replaced with the sample board.','Reset board',()=>{const replacement=makeBoard();replacement.id=board().id;replacement.title=board().title;mutate('Board reset',()=>{state.boards=[replacement];state.activeBoardId=replacement.id;});});} if(event.target.closest('[data-action="restore-card"]')){const found=findCard(event.target.closest('[data-card-id]').dataset.cardId);if(found){mutate('Card restored',()=>{found.card.archived=false;found.card.archivedAt='';record(found.card,'Restored from archive');});showArchive();}return;} if(!event.target.closest('.board-actions')){$('#board-menu-panel').hidden=true;$('#board-menu').setAttribute('aria-expanded','false');}});
+  $('#board-title').addEventListener('change',e=>{const title=e.target.value.trim()||'Untitled board';if(title!==board().title)mutate('Board renamed',()=>{board().title=title;document.title=`${title} — Flowboard`;});}); $('#search').addEventListener('input',e=>{searchTerm=e.target.value.trim();render();}); $('#clear-search').addEventListener('click',()=>{$('#search').value='';searchTerm='';render();$('#search').focus();});
+  $('#confirm-dialog').addEventListener('close',()=>{if($('#confirm-dialog').returnValue==='confirm'&&pendingAction)pendingAction();pendingAction=null;});
+  $('#close-card-dialog').addEventListener('click',closeCard); $('#card-dialog').addEventListener('cancel',e=>{e.preventDefault();closeCard();}); $('#card-form').addEventListener('submit',e=>{e.preventDefault();saveDetails();}); $('#add-label').addEventListener('click',()=>{const card=dialogCard();card.labels.push({id:uid(),color:'green',name:''});labelEditor(card.labels);}); $('#label-editor').addEventListener('click',e=>{if(e.target.closest('[data-action="remove-label"]')){const card=dialogCard();card.labels=card.labels.filter(l=>l.id!==e.target.closest('.label-row').dataset.labelId);labelEditor(card.labels);}}); $('#add-checklist-item').addEventListener('click',()=>{const card=dialogCard();card.checklist.push({id:uid(),text:'',done:false});checklistEditor(card.checklist);$('#checklist-editor .check-item:last-child input:not([type="checkbox"])')?.focus();}); $('#checklist-editor').addEventListener('click',e=>{if(e.target.closest('[data-action="remove-checklist-item"]')){const card=dialogCard();card.checklist=card.checklist.filter(i=>i.id!==e.target.closest('.check-item').dataset.itemId);checklistEditor(card.checklist);}}); $('#archive-card').addEventListener('click',()=>{const found=findCard(openCardId);if(!found)return;mutate(found.card.archived?'Card restored':'Card archived',()=>{found.card.archived=!found.card.archived;found.card.archivedAt=found.card.archived?now():'';record(found.card,found.card.archived?'Archived card':'Restored from archive');});closeCard();}); $('#delete-card').addEventListener('click',()=>{const found=findCard(openCardId);requestConfirmation('Delete this card?',`“${found.card.title}” will be permanently removed.`,'Delete card',()=>{mutate('Card deleted',()=>found.list.cards=found.list.cards.filter(c=>c.id!==found.card.id));closeCard();});}); $('#duplicate-card').addEventListener('click',()=>{const found=findCard(openCardId);mutate('Card duplicated',()=>{const clone=normalizeCard({...found.card,id:uid(),title:`${found.card.title} (copy)`,createdAt:now(),updatedAt:now(),activity:[activity('Duplicated card')]});found.list.cards.push(clone);});closeCard();}); $('#close-archive-dialog').addEventListener('click',()=>$('#archive-dialog').close());
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.preferences.theme==='system')applyTheme();}); state=loadState();applyTheme();render();
 })();

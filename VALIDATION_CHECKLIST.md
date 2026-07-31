@@ -19,7 +19,13 @@ Run these checks before publishing a Flowboard change.
 - [ ] Delete a card and a list; confirm Cancel and destructive-confirmation paths.
 - [ ] Drag a card to another list and reload.
 - [ ] Add a list and verify focus lands in its title input.
-- [ ] Search for a card, verify the result count, then clear the search.
+- [ ] Search by a card title, description, label name, checklist item, and assignee; verify the result count and clear action.
+- [ ] Open a card and save title, multiline description, named labels, due date/time, assignees, and checklist items; reload and verify every field persists.
+- [ ] Mark a checklist item complete and confirm card progress updates after save.
+- [ ] Verify upcoming, due-today, overdue, and complete due-state presentation includes readable text.
+- [ ] Archive a card, confirm it leaves the active board, then restore it through **Board actions → Archived cards**.
+- [ ] Duplicate a card and confirm the copy persists.
+- [ ] Open and close the card dialog with the close control and Escape; focus returns to the triggering card.
 - [ ] Reset the board through Board actions and verify the custom dialog.
 
 ## Visual and accessibility checks

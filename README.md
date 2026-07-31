@@ -10,7 +10,12 @@ A lightweight, local-first project-planning board inspired by kanban tools. It i
 - Create, rename, and delete lists.
 - Create and delete cards.
 - Drag cards between lists.
-- Filter cards by title.
+- Filter cards across titles, descriptions, labels, checklist text, and assignees.
+- Open an accessible card-detail dialog to edit titles, descriptions, named colored labels, due dates/times, checklists, and local assignees.
+- See concise card metadata: description, checklist progress, due state, labels, and assignee initials.
+- Archive cards and restore them from **Board actions → Archived cards**; permanent deletion remains separate.
+- Record a local activity history for creation, editing, moves, archive/recovery, and duplication.
+- Duplicate a card from its detail view.
 - Edit the board title.
 - Light/dark visual themes.
 - Accessible custom confirmation dialog for destructive actions.
@@ -44,4 +49,4 @@ GitHub Pages serves `index.html` from the `main` branch root. After pushing chan
 
 ## Planned next work
 
-The next roadmap milestone is rich card editing: descriptions, labels, due dates, checklists, archiving, and precise card/list reordering. See `IMPROVEMENT_PLAN.md` for the complete phased plan.
+The next roadmap milestone is precise board organization: insertion-aware card/list reordering, touch and keyboard movement, and expanded filters. See `IMPROVEMENT_PLAN.md` for the complete phased plan.

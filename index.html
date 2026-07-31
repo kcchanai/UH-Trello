@@ -35,6 +35,7 @@
       <div class="board-actions">
         <button id="board-menu" class="button button-quiet" type="button" aria-haspopup="menu" aria-expanded="false"><svg><use href="#icon-more"></use></svg><span>Board actions</span></button>
         <div id="board-menu-panel" class="menu-panel" role="menu" hidden>
+          <button type="button" role="menuitem" data-action="show-archive">Archived cards</button>
           <button type="button" role="menuitem" data-action="reset-board"><svg><use href="#icon-trash"></use></svg>Reset board</button>
         </div>
       </div>
@@ -49,6 +50,19 @@
       <div class="dialog-actions"><button class="button button-quiet" value="cancel">Cancel</button><button id="confirm-action" class="button button-danger" value="confirm">Delete</button></div>
     </form>
   </dialog>
+  <dialog id="card-dialog" class="dialog card-dialog" aria-labelledby="card-dialog-heading">
+    <form id="card-form" class="card-dialog-card">
+      <header class="card-dialog-header"><div><p class="eyebrow">Card details</p><h2 id="card-dialog-heading">Edit card</h2></div><button id="close-card-dialog" class="dialog-close" type="button" aria-label="Close card details"><svg><use href="#icon-close"></use></svg></button></header>
+      <label class="field"><span>Title</span><input id="card-title-input" name="title" required maxlength="300" /></label>
+      <label class="field"><span>Description</span><textarea id="card-description-input" name="description" placeholder="Add more context, notes, or links…"></textarea></label>
+      <section class="detail-section" aria-labelledby="labels-heading"><div class="section-heading"><h3 id="labels-heading">Labels</h3><button id="add-label" class="text-button" type="button">Add label</button></div><div id="label-editor" class="label-editor"></div></section>
+      <section class="detail-section fields-row" aria-label="Schedule and people"><label class="field"><span>Due date</span><input id="due-date-input" name="dueDate" type="date" /></label><label class="field"><span>Due time <em>(optional)</em></span><input id="due-time-input" name="dueTime" type="time" /></label><label class="field field-wide"><span>Assignees</span><input id="assignees-input" name="assignees" placeholder="Names or initials, separated by commas" /></label></section>
+      <section class="detail-section" aria-labelledby="checklist-heading"><div class="section-heading"><h3 id="checklist-heading">Checklist <span id="checklist-progress" class="progress-text"></span></h3><button id="add-checklist-item" class="text-button" type="button">Add item</button></div><div id="checklist-editor" class="checklist-editor"></div></section>
+      <section class="detail-section activity-section" aria-labelledby="activity-heading"><h3 id="activity-heading">Activity</h3><ol id="activity-log" class="activity-log"></ol></section>
+      <footer class="card-dialog-footer"><div class="dialog-secondary-actions"><button id="archive-card" class="button button-quiet" type="button">Archive</button><button id="delete-card" class="button button-danger-outline" type="button">Delete</button></div><div class="dialog-actions"><button id="duplicate-card" class="button button-quiet" type="button">Duplicate</button><button class="button button-primary" type="submit">Save changes</button></div></footer>
+    </form>
+  </dialog>
+  <dialog id="archive-dialog" class="dialog archive-dialog" aria-labelledby="archive-heading"><div class="archive-dialog-card"><header class="card-dialog-header"><div><p class="eyebrow">Recovery</p><h2 id="archive-heading">Archived cards</h2></div><button id="close-archive-dialog" class="dialog-close" type="button" aria-label="Close archived cards"><svg><use href="#icon-close"></use></svg></button></header><div id="archive-list" class="archive-list"></div></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <noscript><p class="noscript">Flowboard needs JavaScript enabled to save and organize cards.</p></noscript>
   <script src="app.js"></script>
