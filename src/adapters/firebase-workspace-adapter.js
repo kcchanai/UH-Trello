@@ -34,6 +34,15 @@ export function createFirebaseWorkspaceAdapter(config) {
     async signOut() { await firebaseSignOut(auth); },
     async listWorkspaces() { return (await cloud()).listCloudWorkspaces(app, auth); },
     async fetchWorkspace(workspaceId) { return (await cloud()).fetchCloudWorkspace(app, auth, workspaceId); },
+    async listMembers(workspaceId) { return (await cloud()).listMembers(app, auth, workspaceId); },
+    async listInvites(workspaceId) { return (await cloud()).listInvites(app, auth, workspaceId); },
+    async createInvite(options) { return (await cloud()).createInvite(app, auth, options); },
+    async revokeInvite(workspaceId, inviteId) { return (await cloud()).revokeInvite(app, auth, workspaceId, inviteId); },
+    async acceptInvite(options) { return (await cloud()).acceptInvite(app, auth, options); },
+    async changeMemberRole(workspaceId, uid, role) { return (await cloud()).changeMemberRole(app, auth, workspaceId, uid, role); },
+    async removeMember(workspaceId, uid) { return (await cloud()).removeMember(app, auth, workspaceId, uid); },
+    async leaveWorkspace(workspaceId) { return (await cloud()).leaveWorkspace(app, auth, workspaceId); },
+    async transferOwnership(options) { return (await cloud()).transferOwnership(app, auth, options); },
     async uploadLocalWorkspace(options) { return (await cloud()).uploadLocalWorkspace(app, auth, options); }
   };
 

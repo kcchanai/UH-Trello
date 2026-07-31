@@ -1,6 +1,6 @@
 import {
-  arrayUnion, collection, doc, getDoc, getDocs, getFirestore, orderBy, query,
-  serverTimestamp, writeBatch
+  arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, orderBy, query,
+  serverTimestamp, Timestamp, updateDoc, writeBatch
 } from 'firebase/firestore';
 
 const requireUser = auth => {
@@ -8,6 +8,11 @@ const requireUser = auth => {
   return auth.currentUser;
 };
 const bytes = value => new TextEncoder().encode(JSON.stringify(value)).length;
+const normalizeEmail = value => String(value || '').trim().toLowerCase();
+const randomId = () => {
+  const values = new Uint8Array(16); crypto.getRandomValues(values);
+  return btoa(String.fromCharCode(...values)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
 
 export async function listCloudWorkspaces(app, auth) {
   const db = getFirestore(app), user = requireUser(auth);
@@ -75,4 +80,62 @@ export async function uploadLocalWorkspace(app, auth, {name, workspace}) {
     && verifiedBoards.docs.every(item => expectedIds.has(item.id) && item.data().snapshot?.id === item.id);
   if (!verified) throw Object.assign(new Error('Cloud workspace verification failed.'), {code:'MIGRATION_VERIFICATION_FAILED', workspaceId});
   return {id:workspaceId, name:cleanName, boardCount:cloudBoards.length, status:'ready'};
+}
+
+export async function listMembers(app, auth, workspaceId) {
+  const db = getFirestore(app); requireUser(auth);
+  const snapshots = await getDocs(collection(db, 'workspaces', workspaceId, 'members'));
+  return snapshots.docs.map(item => ({id:item.id, ...item.data()}));
+}
+
+export async function listInvites(app, auth, workspaceId) {
+  const db = getFirestore(app); requireUser(auth);
+  const snapshots = await getDocs(collection(db, 'workspaces', workspaceId, 'invites'));
+  return snapshots.docs.map(item => ({id:item.id, ...item.data()}));
+}
+
+export async function createInvite(app, auth, {workspaceId, email, role, baseUrl}) {
+  const db = getFirestore(app), user = requireUser(auth), emailLower = normalizeEmail(email);
+  if (!user.emailVerified) throw Object.assign(new Error('Verify your Google email before inviting a member.'), {code:'EMAIL_NOT_VERIFIED'});
+  if (!/^\S+@\S+\.\S+$/.test(emailLower)) throw Object.assign(new Error('Enter a valid Google email address.'), {code:'INVALID_EMAIL'});
+  if (!['editor', 'viewer'].includes(role)) throw Object.assign(new Error('Choose editor or viewer access.'), {code:'INVALID_ROLE'});
+  const inviteId = randomId(), expiresAt = Timestamp.fromMillis(Date.now() + 7 * 86_400_000);
+  await writeBatch(db).set(doc(db, 'workspaces', workspaceId, 'invites', inviteId), {
+    emailLower, role, createdBy:user.uid, createdAt:serverTimestamp(), expiresAt, revokedAt:null, acceptedAt:null, acceptedBy:null
+  }).commit();
+  const url = new URL(baseUrl); url.searchParams.set('workspace', workspaceId); url.searchParams.set('invite', inviteId);
+  return {inviteId, emailLower, role, expiresAt, url:url.toString()};
+}
+
+export async function revokeInvite(app, auth, workspaceId, inviteId) {
+  const db = getFirestore(app); requireUser(auth);
+  await updateDoc(doc(db, 'workspaces', workspaceId, 'invites', inviteId), {revokedAt:serverTimestamp()});
+}
+
+export async function acceptInvite(app, auth, {workspaceId, inviteId}) {
+  const db = getFirestore(app), user = requireUser(auth);
+  if (!user.emailVerified) throw Object.assign(new Error('Verify your Google email before accepting an invitation.'), {code:'EMAIL_NOT_VERIFIED'});
+  const invite = await getDoc(doc(db, 'workspaces', workspaceId, 'invites', inviteId));
+  if (!invite.exists()) throw Object.assign(new Error('This invitation is unavailable.'), {code:'INVITE_UNAVAILABLE'});
+  const data = invite.data(), batch = writeBatch(db), emailLower = normalizeEmail(user.email);
+  batch.set(doc(db, 'workspaces', workspaceId, 'members', user.uid), {uid:user.uid, role:data.role, emailLower, inviteId});
+  batch.update(invite.ref, {acceptedAt:serverTimestamp(), acceptedBy:user.uid});
+  batch.set(doc(db, 'users', user.uid), {uid:user.uid, emailLower, displayName:user.displayName || '', workspaceIds:arrayUnion(workspaceId), updatedAt:serverTimestamp()}, {merge:true});
+  await batch.commit();
+}
+
+export async function changeMemberRole(app, auth, workspaceId, uid, role) {
+  if (!['editor', 'viewer'].includes(role)) throw Object.assign(new Error('Only editor and viewer roles can be assigned here.'), {code:'INVALID_ROLE'});
+  const db = getFirestore(app); requireUser(auth);
+  await updateDoc(doc(db, 'workspaces', workspaceId, 'members', uid), {role});
+}
+export async function removeMember(app, auth, workspaceId, uid) { const db = getFirestore(app); requireUser(auth); await deleteDoc(doc(db, 'workspaces', workspaceId, 'members', uid)); }
+export async function leaveWorkspace(app, auth, workspaceId) { const db = getFirestore(app), user = requireUser(auth); await deleteDoc(doc(db, 'workspaces', workspaceId, 'members', user.uid)); }
+export async function transferOwnership(app, auth, {workspaceId, successorUid, formerOwnerRole = 'editor'}) {
+  if (!['editor', 'viewer'].includes(formerOwnerRole)) throw Object.assign(new Error('Choose editor or viewer for the former owner.'), {code:'INVALID_ROLE'});
+  const db = getFirestore(app), user = requireUser(auth), batch = writeBatch(db), workspace = doc(db, 'workspaces', workspaceId);
+  batch.update(workspace, {ownerUid:successorUid, updatedAt:serverTimestamp()});
+  batch.update(doc(db, 'workspaces', workspaceId, 'members', user.uid), {role:formerOwnerRole});
+  batch.update(doc(db, 'workspaces', workspaceId, 'members', successorUid), {role:'owner'});
+  await batch.commit();
 }
