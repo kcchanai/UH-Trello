@@ -1,8 +1,9 @@
 import {readFile} from 'node:fs/promises';
 
-const [html, app, core, main, localAdapter, firebaseAdapter, authUI] = await Promise.all([
+const [html, app, core, main, localAdapter, firebaseAdapter, cloudAdapter, authUI, cloudUI] = await Promise.all([
   'index.html', 'app.js', 'state-core.js', 'src/main.js', 'src/adapters/local-workspace-adapter.js',
-  'src/adapters/firebase-workspace-adapter.js', 'src/auth-ui.js'
+  'src/adapters/firebase-workspace-adapter.js', 'src/adapters/firebase-cloud-workspace.js',
+  'src/auth-ui.js', 'src/cloud-workspace-ui.js'
 ].map(file => readFile(file, 'utf8')));
 
 const required = [
@@ -14,6 +15,7 @@ const required = [
   ['Vite module entry', /type="module"\s+src="\/src\/main\.js"/],
   ['honest cloud status', /id="cloud-status"/],
   ['Google account dialog', /id="account-dialog"/],
+  ['explicit cloud migration dialog', /id="cloud-migration-dialog"/],
   ['explicit local-data safety notice', /Signing in does not upload, merge, replace, or delete/]
 ];
 for (const [label, pattern] of required) if (!pattern.test(html)) throw new Error(`Static validation failed: missing ${label}.`);
@@ -24,4 +26,6 @@ if (!core.includes('module.exports')) throw new Error('State helpers are not tes
 if (!main.includes('createLocalWorkspaceAdapter') || !localAdapter.includes('loadWorkspace')) throw new Error('Local adapter boundary is incomplete.');
 if (!main.includes('createFirebaseWorkspaceAdapter') || !firebaseAdapter.includes('signInWithPopup')) throw new Error('Firebase Authentication boundary is incomplete.');
 if (!authUI.includes('Your local workspace was not changed') || !authUI.includes('Your local workspace was not uploaded')) throw new Error('Authentication UI lacks local-data safety handling.');
+if (!firebaseAdapter.includes('firebase-cloud-workspace.js') || !cloudAdapter.includes('MIGRATION_VERIFICATION_FAILED')) throw new Error('Verified cloud migration adapter is incomplete.');
+if (!cloudUI.includes('flowboard-before-cloud-') || !cloudUI.includes('still using the local original')) throw new Error('Cloud migration UI lacks backup-first local safety handling.');
 console.log(`Static validation passed: ${required.length} semantic/runtime guards plus adapter-boundary checks.`);

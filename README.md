@@ -29,7 +29,8 @@ A lightweight, local-first project-planning board inspired by kanban tools. It u
 - Forced-colors/high-contrast support, 200% reflow safeguards, and reduced-motion support.
 - Browser-local persistence and migration from the original MVP storage format.
 - A tested `LocalWorkspaceAdapter` boundary. The application does not bypass it for browser persistence, and unavailable cloud operations fail explicitly rather than imitating sign-in or sync.
-- Honest cloud-configuration status: until Firebase's public web configuration and tested Firestore Security Rules are supplied, Flowboard remains local-only.
+- Real Firebase Google sign-in with persistent browser sessions, account status, and sign-out; authentication never implies authorization or automatic data migration.
+- A backup-first, explicit cloud-copy flow that reviews board/list/card counts, downloads JSON before enabling upload, creates owner membership under deployed Firestore Security Rules, verifies the written boards, and keeps the local original active.
 - A per-board **Collaboration plan** that records planned owner/editor/viewer roles and access mode locally, plus a clearly labelled local viewer-preview guard. It does not provide accounts, invitations, server authorization, or sync.
 
 ## Run locally
@@ -47,7 +48,7 @@ Vite serves the project at `http://127.0.0.1:5173/UH-Trello/` by default. `npm r
 
 ## Data and privacy
 
-Flowboard stores data only in this browser using `localStorage`; it has no accounts, collaboration backend, or cloud synchronization. The local **Collaboration plan** is planning metadata and a UI-only viewer preview, not identity or access control. Export a workspace JSON file before clearing browser-site data or moving browsers. The app uses a versioned `flowboard-workspace` storage envelope (currently schema 4), automatically migrates the original `flowboard-data` MVP format, and keeps up to five rotating browser-local recovery snapshots where storage space permits. Undo history is intentionally session-only. Imports are parsed and validated before the user chooses merge or replacement; invalid data leaves the current workspace untouched. A browser-local backup is helpful recovery—not a substitute for exported copies.
+Flowboard's active board remains browser-local in `localStorage` unless the signed-in user separately reviews and confirms **Create cloud copy**. Sign-in alone never uploads, merges, replaces, or deletes local data. The migration flow requires a downloaded JSON backup, creates a separate Firestore workspace and owner membership, verifies the cloud board documents, and leaves the local original active; realtime synchronization and cloud editing are not enabled yet. The local **Collaboration plan** remains planning metadata and a UI-only viewer preview, not server authorization. The app uses a versioned `flowboard-workspace` storage envelope (currently schema 4), automatically migrates the original `flowboard-data` MVP format, and keeps up to five rotating browser-local recovery snapshots where storage permits. Undo history is session-only. Imports are validated before merge or replacement; invalid data leaves the current workspace untouched.
 
 ## Project structure
 
@@ -55,10 +56,10 @@ Flowboard stores data only in this browser using `localStorage`; it has no accou
 - `styles.css` — responsive design system, components, light/dark themes, and reduced-motion support.
 - `app.js` — UI orchestration and DOM event handling; persistence is delegated to the configured local adapter.
 - `src/main.js` — Vite module entry that assembles runtime configuration, the domain helpers, and adapters.
-- `src/adapters/` — documented adapter contract, explicit unavailable-cloud boundary, and `LocalWorkspaceAdapter`.
+- `src/adapters/` — documented adapter contract, `LocalWorkspaceAdapter`, Firebase Authentication adapter, and lazy-loaded Firestore cloud-workspace migration adapter.
 - `src/config.js` — public environment configuration detection; it exposes no credentials.
 - `state-core.js` — dependency-free state helpers shared by the app and Node unit tests.
-- `firebase.json`, `firestore.rules`, and `firestore.indexes.json` — Firebase Emulator/Firestore policy source; production deployment remains blocked until owner setup and rule tests pass.
+- `firebase.json`, `firestore.rules`, and `firestore.indexes.json` — deployed Firestore policy source plus Emulator Suite configuration; rules remain version-controlled and tested in CI.
 - `FIREBASE_COLLABORATION_PLAN.md` — active authenticated-collaboration roadmap.
 - `FIREBASE_OWNER_SETUP.md` — exact owner-only Firebase console setup and credential-safety checklist.
 - `tests/` — Node unit tests, Firestore Security Rules tests, and Chromium critical-workflow smoke tests.
@@ -98,4 +99,4 @@ The Phase 6 audit used Lighthouse accessibility against the locally served app (
 
 ## Collaboration status and next work
 
-Phase A established the local adapter and Vite/GitHub Pages build. The active cloud direction is now Firebase Authentication plus Cloud Firestore on the no-cost Spark plan. Version-controlled deny-by-default rules, emulator configuration, and a policy-test harness are being added before any sign-in UI is enabled. This is **not yet live collaboration**: production accounts, invitations, server-enforced access, and synchronization remain unavailable until Aaron completes `FIREBASE_OWNER_SETUP.md`, policy tests pass, and the reviewed rules are deployed. See `FIREBASE_COLLABORATION_PLAN.md` for the current roadmap.
+Phase A established the local adapter and Vite/GitHub Pages build. Firebase Google Authentication is live, deny-by-default Firestore rules are deployed, and rules tests run in CI. The current migration stage can create and verify a separate owner-controlled cloud copy only after an explicit local JSON backup; it deliberately does not switch the active local workspace or silently synchronize data. This is **not yet live collaboration**: cloud editing, workspace switching, invitations, role administration, revocation, and realtime synchronization remain release-gated. See `FIREBASE_COLLABORATION_PLAN.md` for the roadmap.

@@ -71,6 +71,30 @@ test('editor can write board content but cannot manage members', async () => {
   }));
 });
 
+test('owner bootstrap and backup-first board upload are permitted as separate verified writes', async () => {
+  const owner = dbFor('migration-owner', 'migration@example.com');
+  const bootstrap = writeBatch(owner);
+  bootstrap.set(doc(owner, 'workspaces', 'migration-workspace'), {
+    name:'Migrated workspace', ownerUid:'migration-owner', schemaVersion:4,
+    activeBoardId:'board-1', status:'initializing'
+  });
+  bootstrap.set(doc(owner, 'workspaces', 'migration-workspace', 'members', 'migration-owner'), {
+    uid:'migration-owner', role:'owner', emailLower:'migration@example.com'
+  });
+  bootstrap.set(doc(owner, 'users', 'migration-owner'), {
+    uid:'migration-owner', emailLower:'migration@example.com', workspaceIds:['migration-workspace']
+  });
+  await assertSucceeds(bootstrap.commit());
+
+  const upload = writeBatch(owner);
+  upload.set(doc(owner, 'workspaces', 'migration-workspace', 'boards', 'board-1'), {
+    title:'Imported board', rank:0, snapshot:{id:'board-1', title:'Imported board', lists:[]}
+  });
+  upload.update(doc(owner, 'workspaces', 'migration-workspace'), {status:'ready'});
+  await assertSucceeds(upload.commit());
+  assert.equal((await getDoc(doc(owner, 'workspaces', 'migration-workspace', 'boards', 'board-1'))).exists(), true);
+});
+
 test('only the verified email addressed by an active invite can accept it', async () => {
   const wrong = dbFor('wrong-user', 'wrong@example.com');
   await assertFails(getDoc(doc(wrong, 'workspaces', 'alpha', 'invites', 'invite-123')));

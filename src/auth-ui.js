@@ -11,12 +11,13 @@ function messageFor(error) {
   return 'Google sign-in could not be completed. Your local workspace was not changed.';
 }
 
-export function initializeAuthUI(adapter) {
+export function initializeAuthUI(adapter, {onSessionChange = () => {}} = {}) {
   const button = document.querySelector('#account-button');
   const dialog = document.querySelector('#account-dialog');
   const close = document.querySelector('#close-account-dialog');
   const signIn = document.querySelector('#google-sign-in');
   const signOut = document.querySelector('#account-sign-out');
+  const migrate = document.querySelector('#open-cloud-migration');
   const name = document.querySelector('#account-name');
   const email = document.querySelector('#account-email');
   const status = document.querySelector('#account-status');
@@ -39,10 +40,12 @@ export function initializeAuthUI(adapter) {
     email.textContent = signedIn ? session.email : 'Your local workspace remains available without an account.';
     signIn.hidden = signedIn;
     signOut.hidden = !signedIn;
+    migrate.hidden = !signedIn;
     cloudStatus.textContent = signedIn ? `Signed in · local workspace` : 'Google sign-in available';
     cloudStatus.title = signedIn
       ? 'Signed in with Google. This browser-local workspace has not been uploaded or synchronized.'
       : 'Firebase is configured. Sign-in does not upload your local workspace.';
+    onSessionChange(session);
   };
 
   button.addEventListener('click', () => { render(currentSession); dialog.showModal(); (currentSession ? signOut : signIn).focus(); });
