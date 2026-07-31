@@ -32,6 +32,7 @@
     <section class="board-header" aria-label="Board controls">
       <div class="board-heading"><svg aria-hidden="true"><use href="#icon-board"></use></svg><input id="board-title" class="board-title" aria-label="Board title" value="Website Launch" /></div>
       <output id="search-count" class="search-count" aria-live="polite"></output>
+      <div class="filter-actions"><button id="filter-toggle" class="button button-quiet" type="button" aria-expanded="false">Filters</button><div id="filter-panel" class="filter-panel" hidden><label>Due <select id="due-filter"><option value="all">Any date</option><option value="overdue">Overdue</option><option value="today">Due today</option><option value="upcoming">Upcoming</option><option value="complete">Complete</option></select></label><label>Label <select id="label-filter"><option value="all">Any label</option><option value="green">Green</option><option value="purple">Purple</option><option value="orange">Orange</option><option value="red">Red</option></select></label><button id="clear-filters" class="text-button" type="button">Clear filters</button></div></div>
       <div class="board-actions">
         <button id="board-menu" class="button button-quiet" type="button" aria-haspopup="menu" aria-expanded="false"><svg><use href="#icon-more"></use></svg><span>Board actions</span></button>
         <div id="board-menu-panel" class="menu-panel" role="menu" hidden>
