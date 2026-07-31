@@ -1,0 +1,40 @@
+export function initializeMembersUI(adapter) {
+  const open = document.querySelector('#open-workspace-members'), dialog = document.querySelector('#workspace-members-dialog');
+  const close = document.querySelector('#close-workspace-members'), status = document.querySelector('#workspace-members-status');
+  const form = document.querySelector('#create-invite-form'), email = document.querySelector('#invite-email'), role = document.querySelector('#invite-role');
+  const membersList = document.querySelector('#workspace-members-list'), invitesSection = document.querySelector('#workspace-invites-section'), invitesList = document.querySelector('#workspace-invites-list'), linkStatus = document.querySelector('#invite-link-status');
+  const transferForm = document.querySelector('#transfer-ownership-form'), successor = document.querySelector('#ownership-successor'), formerOwnerRole = document.querySelector('#former-owner-role');
+  let session = null, workspaceId = null, owner = false;
+  const message = text => { status.textContent = text; };
+  const activeWorkspace = () => globalThis.FlowboardApp?.getMode()?.kind === 'cloud-preview' ? globalThis.FlowboardApp.getMode() : null;
+  const copy = async text => { try { await navigator.clipboard.writeText(text); linkStatus.textContent = 'Invitation link copied.'; } catch { linkStatus.textContent = `Copy this invitation link: ${text}`; } };
+  const refresh = async () => {
+    const active = activeWorkspace(); workspaceId = active?.id || null;
+    if (!session || !workspaceId) { open.hidden = true; dialog.close(); return; }
+    open.hidden = false; message('Loading workspace access…'); membersList.replaceChildren(); invitesList.replaceChildren(); linkStatus.textContent = '';
+    try {
+      const members = await adapter.listMembers(workspaceId), self = members.find(item => item.uid === session.uid); owner = self?.role === 'owner';
+      if (!self) throw new Error('not-member');
+      members.forEach(member => {
+        const row = document.createElement('div'), title = document.createElement('strong'), detail = document.createElement('span');
+        title.textContent = member.displayName || member.emailLower || member.uid; detail.textContent = member.role;
+        row.className = 'workspace-board'; row.append(title, detail);
+        if (owner && member.role !== 'owner') { const select = document.createElement('select'); ['editor','viewer'].forEach(value => { const option = new Option(value, value, false, value === member.role); select.add(option); }); select.addEventListener('change', async () => { await adapter.changeMemberRole(workspaceId, member.uid, select.value); refresh(); }); const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'button button-quiet'; remove.textContent = 'Remove'; remove.addEventListener('click', async () => { await adapter.removeMember(workspaceId, member.uid); refresh(); }); row.append(select, remove); }
+        if (!owner && member.uid === session.uid && member.role !== 'owner') { const leave = document.createElement('button'); leave.type = 'button'; leave.className = 'button button-quiet'; leave.textContent = 'Leave workspace'; leave.addEventListener('click', async () => { await adapter.leaveWorkspace(workspaceId); dialog.close(); open.hidden = true; }); row.append(leave); }
+        membersList.append(row);
+      });
+      form.hidden = !owner; invitesSection.hidden = !owner;
+      transferForm.hidden = !owner;
+      successor.replaceChildren();
+      members.filter(member => member.uid !== session.uid && ['editor', 'viewer'].includes(member.role)).forEach(member => successor.add(new Option(member.displayName || member.emailLower || member.uid, member.uid)));
+      transferForm.querySelector('button[type="submit"]').disabled = successor.options.length === 0;
+      if (owner) { const invites = await adapter.listInvites(workspaceId); invites.filter(item => !item.revokedAt && !item.acceptedAt).forEach(invite => { const row = document.createElement('div'), title = document.createElement('strong'), revoke = document.createElement('button'); row.className = 'workspace-board'; title.textContent = `${invite.role} invitation`; revoke.type='button'; revoke.className='button button-quiet'; revoke.textContent='Revoke'; revoke.addEventListener('click', async () => { await adapter.revokeInvite(workspaceId, invite.id); refresh(); }); row.append(title, revoke); invitesList.append(row); }); }
+      message(owner ? 'Owner access: create, revoke, and manage editor/viewer access.' : `You have ${self.role} access.`);
+    } catch (error) { console.error('Flowboard member administration failed.', error); message('Workspace access could not be loaded. Local data is unchanged.'); open.hidden = true; }
+  };
+  window.addEventListener('flowboard:cloud-preview-change', () => refresh());
+  open.addEventListener('click', async () => { await refresh(); dialog.showModal(); }); close.addEventListener('click', () => dialog.close()); dialog.addEventListener('cancel', event => { event.preventDefault(); dialog.close(); });
+  form.addEventListener('submit', async event => { event.preventDefault(); if (!owner || !workspaceId) return; const submit = form.querySelector('button[type="submit"]'); submit.disabled=true; linkStatus.textContent='Creating invitation…'; try { const result = await adapter.createInvite({workspaceId, email:email.value, role:role.value, baseUrl:window.location.href}); email.value=''; linkStatus.textContent='Invitation created.'; await copy(result.url); refresh(); } catch (error) { console.error('Flowboard invitation creation failed.', error); linkStatus.textContent='Invitation could not be created.'; } finally { submit.disabled=false; } });
+  transferForm.addEventListener('submit', async event => { event.preventDefault(); if (!owner || !workspaceId || !successor.value) return; const submit = transferForm.querySelector('button[type="submit"]'); submit.disabled = true; message('Transferring ownership…'); try { await adapter.transferOwnership({workspaceId, successorUid:successor.value, formerOwnerRole:formerOwnerRole.value}); message('Ownership transferred. Your local workspace remains unchanged.'); await refresh(); } catch (error) { console.error('Flowboard ownership transfer failed.', error); message('Ownership transfer was not completed. No local data changed.'); } finally { submit.disabled = false; } });
+  return {setSession(next) { session = next; refresh(); }};
+}

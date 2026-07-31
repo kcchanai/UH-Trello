@@ -128,7 +128,7 @@
     openCloudPreview(workspace, metadata = {}) {
       if (!FlowboardState.validWorkspace(workspace)) throw new Error('The cloud workspace data is not a supported Flowboard workspace.');
       state = normalizeWorkspace(clone(workspace)); activeWorkspace = {kind:'cloud-preview', id:metadata.id || '', name:metadata.name || 'Cloud workspace'};
-      undoHistory = []; openCardId = null; render(); say(`Viewing “${activeWorkspace.name}” as a read-only cloud preview. Your local workspace is unchanged.`);
+      undoHistory = []; openCardId = null; render(); window.dispatchEvent(new Event('flowboard:cloud-preview-change')); say(`Viewing “${activeWorkspace.name}” as a read-only cloud preview. Your local workspace is unchanged.`);
     },
     returnToLocal() {
       state = loadState(); activeWorkspace = {kind:'local'}; undoHistory = []; openCardId = null; applyTheme(); render(); say('Returned to your browser-local workspace.');
