@@ -61,6 +61,7 @@ Flowboard's active board remains browser-local in `localStorage` unless the sign
 - `state-core.js` — dependency-free state helpers shared by the app and Node unit tests.
 - `firebase.json`, `firestore.rules`, and `firestore.indexes.json` — deployed Firestore policy source plus Emulator Suite configuration; rules remain version-controlled and tested in CI.
 - `FIREBASE_COLLABORATION_PLAN.md` — active authenticated-collaboration roadmap.
+- `TERRA_NEXT_PHASES_PLAN.md` — authoritative sequential implementation handoff for workspace discovery, members, granular cloud data, realtime convergence, and release validation.
 - `FIREBASE_OWNER_SETUP.md` — exact owner-only Firebase console setup and credential-safety checklist.
 - `tests/` — Node unit tests, Firestore Security Rules tests, and Chromium critical-workflow smoke tests.
 - `.github/workflows/validate.yml` — pull-request/main validation: unit, static, performance-budget, browser, and accessibility checks.

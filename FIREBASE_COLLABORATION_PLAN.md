@@ -2,6 +2,8 @@
 
 This roadmap supersedes the Supabase-specific backend sections of `AUTH_COLLABORATION_IMPLEMENTATION_PLAN.md`. Phase A remains complete. The new target is GitHub Pages plus Firebase Authentication and Cloud Firestore on the no-cost Spark plan.
 
+**Current handoff:** Phases A–C are complete. Phase D's backup-first cloud-copy creation and production read-back verification are complete; its original second-browser retrieval criterion is assigned to the Phase E workspace picker. Use `TERRA_NEXT_PHASES_PLAN.md` as the authoritative implementation sequence for Phase E0 onward.
+
 ## Non-negotiable product rules
 
 - Local-only Flowboard remains usable without an account.
@@ -21,7 +23,7 @@ workspaces/{workspaceId}/members/{uid}
 workspaces/{workspaceId}/invites/{inviteId}
 workspaces/{workspaceId}/boards/{boardId}
 workspaces/{workspaceId}/boards/{boardId}/lists/{listId}
-workspaces/{workspaceId}/boards/{boardId}/lists/{listId}/cards/{cardId}
+workspaces/{workspaceId}/boards/{boardId}/cards/{cardId}
 workspaces/{workspaceId}/activity/{activityId}
 ```
 
@@ -34,7 +36,7 @@ Documents use stable IDs, server timestamps, revision numbers or sortable ranks 
 - Missing cloud configuration is reported honestly.
 - Local workflows and deployment validation pass.
 
-## Phase B — Firebase foundation and rules
+## Phase B — Firebase foundation and rules (complete)
 
 1. Add pinned modular Firebase Web SDK dependencies and public configuration detection.
 2. Add `firebase.json`, Firestore indexes, deny-by-default Security Rules, and Emulator Suite tests.
@@ -44,7 +46,7 @@ Documents use stable IDs, server timestamps, revision numbers or sortable ranks 
 
 **Exit:** emulator tests and production rule deployment both pass; direct client requests cannot bypass roles.
 
-## Phase C — Google authentication
+## Phase C — Google authentication (complete)
 
 1. Implement Google popup sign-in, session restoration, sign-out, popup/error states, and account identity.
 2. Distinguish the local workspace from owned/shared cloud workspaces.
@@ -53,7 +55,7 @@ Documents use stable IDs, server timestamps, revision numbers or sortable ranks 
 
 **Exit:** Google sign-in works in production without migrating local data.
 
-## Phase D — cloud workspaces and migration
+## Phase D — cloud workspaces and migration (cloud-copy milestone complete)
 
 1. Owners create an empty cloud workspace in an atomic batch with their owner membership.
 2. Implement Firebase adapter reads/writes for boards, lists, cards, and activity.
@@ -61,9 +63,11 @@ Documents use stable IDs, server timestamps, revision numbers or sortable ranks 
 4. Verify remote counts before considering migration successful; retain the local copy and export.
 5. Add cloud-to-Flowboard JSON export.
 
-**Exit:** the owner sees equivalent cloud data in a second browser while local recovery remains intact.
+**Exit status:** backup-first upload, owner membership, production rule enforcement, direct read-back verification, and local recovery preservation passed. Second-browser workspace discovery/retrieval is the first acceptance gate in `TERRA_NEXT_PHASES_PLAN.md` Phase E1.
 
 ## Phase E — invitations and members
+
+Implementation detail and prerequisite rule hardening are defined in `TERRA_NEXT_PHASES_PLAN.md` Phases E0–E2. Follow that sequence rather than beginning with invitation UI.
 
 1. Add owner-only member management.
 2. Generate cryptographically random, expiring invite IDs and copyable links.
