@@ -12,9 +12,11 @@ const bytes = value => new TextEncoder().encode(JSON.stringify(value)).length;
 export async function listCloudWorkspaces(app, auth) {
   const db = getFirestore(app), user = requireUser(auth);
   const userSnapshot = await getDoc(doc(db, 'users', user.uid));
-  const ids = [...new Set(userSnapshot.data()?.workspaceIds || [])].slice(0, 100);
-  const snapshots = await Promise.all(ids.map(id => getDoc(doc(db, 'workspaces', id))));
-  return snapshots.filter(item => item.exists()).map(item => ({id:item.id, ...item.data()}));
+  const ids = [...new Set(userSnapshot.data()?.workspaceIds || [])].filter(id => typeof id === 'string' && id).slice(0, 100);
+  const results = await Promise.allSettled(ids.map(id => getDoc(doc(db, 'workspaces', id))));
+  return results.flatMap((result, index) => result.status === 'fulfilled' && result.value.exists()
+    ? [{id:result.value.id, ...result.value.data()}]
+    : []);
 }
 
 export async function fetchCloudWorkspace(app, auth, workspaceId) {

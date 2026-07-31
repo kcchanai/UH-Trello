@@ -18,6 +18,7 @@ export function initializeAuthUI(adapter, {onSessionChange = () => {}} = {}) {
   const signIn = document.querySelector('#google-sign-in');
   const signOut = document.querySelector('#account-sign-out');
   const migrate = document.querySelector('#open-cloud-migration');
+  const workspaces = document.querySelector('#open-cloud-workspaces');
   const name = document.querySelector('#account-name');
   const email = document.querySelector('#account-email');
   const status = document.querySelector('#account-status');
@@ -41,6 +42,7 @@ export function initializeAuthUI(adapter, {onSessionChange = () => {}} = {}) {
     signIn.hidden = signedIn;
     signOut.hidden = !signedIn;
     migrate.hidden = !signedIn;
+    workspaces.hidden = !signedIn;
     cloudStatus.textContent = signedIn ? `Signed in · local workspace` : 'Google sign-in available';
     cloudStatus.title = signedIn
       ? 'Signed in with Google. This browser-local workspace has not been uploaded or synchronized.'

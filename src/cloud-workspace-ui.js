@@ -34,6 +34,13 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
   const status = document.querySelector('#cloud-migration-status');
   const backup = document.querySelector('#download-migration-backup');
   const create = document.querySelector('#create-cloud-workspace');
+  const workspaceButton = document.querySelector('#open-cloud-workspaces');
+  const workspacesDialog = document.querySelector('#cloud-workspaces-dialog');
+  const closeWorkspaces = document.querySelector('#close-cloud-workspaces');
+  const workspacesList = document.querySelector('#cloud-workspaces-list');
+  const workspacesStatus = document.querySelector('#cloud-workspaces-status');
+  const returnLocal = document.querySelector('#return-to-local-workspace');
+  const exportCloud = document.querySelector('#export-cloud-workspace');
   const announcer = document.querySelector('#announcer');
   let session = null, workspace = null, backupDownloaded = false, completed = false;
 
@@ -77,6 +84,54 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
       console.error('Flowboard cloud migration failed.', error); announce(messageFor(error));
       create.disabled = false; backup.disabled = false; name.disabled = false;
     }
+  });
+
+  workspaceButton.addEventListener('click', async () => {
+    if (!session) return;
+    accountDialog.close(); workspacesDialog.showModal(); workspacesList.replaceChildren();
+    workspacesStatus.textContent = 'Loading cloud workspaces…';
+    returnLocal.hidden = globalThis.FlowboardApp?.getMode().kind !== 'cloud-preview';
+    exportCloud.hidden = returnLocal.hidden;
+    try {
+      const entries = await cloudAdapter.listWorkspaces();
+      if (!entries.length) { workspacesStatus.textContent = 'No cloud workspaces are available to this account yet.'; return; }
+      workspacesStatus.textContent = 'Choose a workspace to open a read-only preview.';
+      entries.forEach(entry => {
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'workspace-board';
+        const title = document.createElement('strong'), detail = document.createElement('span');
+        title.textContent = entry.name || 'Untitled cloud workspace';
+        detail.textContent = entry.ownerUid === session.uid ? 'Owned cloud workspace · read-only preview' : 'Shared cloud workspace · read-only preview';
+        button.append(title, detail);
+        button.addEventListener('click', async () => {
+          button.disabled = true; workspacesStatus.textContent = 'Opening read-only cloud preview…';
+          try {
+            const cloudWorkspace = await cloudAdapter.fetchWorkspace(entry.id);
+            globalThis.FlowboardApp.openCloudPreview(cloudWorkspace, entry);
+            returnLocal.hidden = false; exportCloud.hidden = false;
+            workspacesStatus.textContent = `Viewing “${entry.name || 'Untitled cloud workspace'}” as a read-only preview. Local data is unchanged.`;
+          } catch (error) {
+            console.error('Flowboard could not open cloud workspace preview.', error);
+            workspacesStatus.textContent = 'This cloud workspace could not be opened. Your local workspace is unchanged.';
+          } finally { button.disabled = false; }
+        });
+        workspacesList.append(button);
+      });
+    } catch (error) {
+      console.error('Flowboard could not list cloud workspaces.', error);
+      workspacesStatus.textContent = 'Cloud workspaces could not be loaded. Your local workspace is unchanged.';
+    }
+  });
+  closeWorkspaces.addEventListener('click', () => workspacesDialog.close());
+  workspacesDialog.addEventListener('cancel', event => { event.preventDefault(); workspacesDialog.close(); });
+  workspacesDialog.addEventListener('close', () => workspaceButton.focus());
+  returnLocal.addEventListener('click', () => {
+    globalThis.FlowboardApp.returnToLocal(); returnLocal.hidden = true; exportCloud.hidden = true;
+    workspacesStatus.textContent = 'Returned to the browser-local workspace.';
+  });
+  exportCloud.addEventListener('click', () => {
+    try { globalThis.FlowboardApp.exportCloudPreview(); workspacesStatus.textContent = 'Cloud preview JSON export downloaded.'; }
+    catch (error) { workspacesStatus.textContent = 'Open a cloud preview before exporting it.'; }
   });
 
   return {

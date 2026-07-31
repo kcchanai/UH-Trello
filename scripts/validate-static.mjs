@@ -16,6 +16,7 @@ const required = [
   ['honest cloud status', /id="cloud-status"/],
   ['Google account dialog', /id="account-dialog"/],
   ['explicit cloud migration dialog', /id="cloud-migration-dialog"/],
+  ['cloud workspace preview dialog', /id="cloud-workspaces-dialog"/],
   ['explicit local-data safety notice', /Signing in does not upload, merge, replace, or delete/]
 ];
 for (const [label, pattern] of required) if (!pattern.test(html)) throw new Error(`Static validation failed: missing ${label}.`);
@@ -28,4 +29,5 @@ if (!main.includes('createFirebaseWorkspaceAdapter') || !firebaseAdapter.include
 if (!authUI.includes('Your local workspace was not changed') || !authUI.includes('Your local workspace was not uploaded')) throw new Error('Authentication UI lacks local-data safety handling.');
 if (!firebaseAdapter.includes('firebase-cloud-workspace.js') || !cloudAdapter.includes('MIGRATION_VERIFICATION_FAILED')) throw new Error('Verified cloud migration adapter is incomplete.');
 if (!cloudUI.includes('flowboard-before-cloud-') || !cloudUI.includes('still using the local original')) throw new Error('Cloud migration UI lacks backup-first local safety handling.');
+if (!app.includes('openCloudPreview') || !app.includes("activeWorkspace.kind !== 'local'") || !cloudUI.includes('read-only cloud preview')) throw new Error('Cloud preview does not preserve the local-only boundary.');
 console.log(`Static validation passed: ${required.length} semantic/runtime guards plus adapter-boundary checks.`);

@@ -89,7 +89,7 @@
       <div class="account-profile"><span class="account-profile-mark" aria-hidden="true">G</span><div><strong id="account-name">Not signed in</strong><span id="account-email">Your local workspace remains available without an account.</span></div></div>
       <p id="account-safety" class="collaboration-notice"><strong>Local data stays local.</strong> Signing in does not upload, merge, replace, or delete this browser's workspace. Cloud workspace migration will always require a separate review and confirmation.</p>
       <p id="account-status" class="account-status" role="status" aria-live="polite"></p>
-      <div class="dialog-actions"><button id="account-sign-out" class="button button-quiet" type="button" hidden>Sign out</button><button id="open-cloud-migration" class="button button-primary" type="button" hidden>Create cloud copy</button><button id="google-sign-in" class="button button-primary" type="button">Continue with Google</button></div>
+      <div class="dialog-actions"><button id="account-sign-out" class="button button-quiet" type="button" hidden>Sign out</button><button id="open-cloud-workspaces" class="button button-quiet" type="button" hidden>Cloud workspaces</button><button id="open-cloud-migration" class="button button-primary" type="button" hidden>Create cloud copy</button><button id="google-sign-in" class="button button-primary" type="button">Continue with Google</button></div>
     </div>
   </dialog>
   <dialog id="cloud-migration-dialog" class="dialog cloud-migration-dialog" aria-labelledby="cloud-migration-heading" aria-describedby="cloud-migration-safety">
@@ -100,6 +100,15 @@
       <dl id="cloud-migration-summary" class="migration-summary"></dl>
       <p id="cloud-migration-status" class="account-status" role="status" aria-live="polite"></p>
       <div class="dialog-actions"><button id="download-migration-backup" class="button button-quiet" type="button">1. Download backup</button><button id="create-cloud-workspace" class="button button-primary" type="button" disabled>2. Create cloud workspace</button></div>
+    </div>
+  </dialog>
+  <dialog id="cloud-workspaces-dialog" class="dialog cloud-workspaces-dialog" aria-labelledby="cloud-workspaces-heading" aria-describedby="cloud-workspaces-safety">
+    <div class="archive-dialog-card">
+      <header class="card-dialog-header"><div><p class="eyebrow">Your cloud workspaces</p><h2 id="cloud-workspaces-heading">Cloud workspace previews</h2></div><button id="close-cloud-workspaces" class="dialog-close" type="button" aria-label="Close cloud workspaces"><svg><use href="#icon-close"></use></svg></button></header>
+      <p id="cloud-workspaces-safety" class="collaboration-notice"><strong>Read-only cloud previews.</strong> Opening a cloud workspace does not replace this browser’s local workspace. Cloud editing and sharing are not enabled yet.</p>
+      <p id="cloud-workspaces-status" class="account-status" role="status" aria-live="polite"></p>
+      <div id="cloud-workspaces-list" class="workspace-board-list"></div>
+      <div class="dialog-actions"><button id="return-to-local-workspace" class="button button-quiet" type="button" hidden>Return to local workspace</button><button id="export-cloud-workspace" class="button button-primary" type="button" hidden>Export cloud JSON</button></div>
     </div>
   </dialog>
   <dialog id="import-dialog" class="dialog import-dialog" aria-labelledby="import-heading">
