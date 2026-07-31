@@ -28,17 +28,22 @@ A lightweight, local-first project-planning board inspired by kanban tools. It i
 - Keyboard-operable board-action menu (Arrow keys, Home/End, Escape), card details, keyboard card movement, and 44 px coarse-pointer targets.
 - Forced-colors/high-contrast support, 200% reflow safeguards, and reduced-motion support.
 - Browser-local persistence and migration from the original MVP storage format.
+- A tested `LocalWorkspaceAdapter` boundary. The application does not bypass it for browser persistence, and unavailable cloud operations fail explicitly rather than imitating sign-in or sync.
+- Honest cloud-configuration status: until Supabase's public project configuration and server policies are supplied, Flowboard remains local-only.
 - A per-board **Collaboration plan** that records planned owner/editor/viewer roles and access mode locally, plus a clearly labelled local viewer-preview guard. It does not provide accounts, invitations, server authorization, or sync.
 
 ## Run locally
 
-Clone/download this repository, then open `index.html` in a modern browser. A local server is optional because the application has no build step.
+Clone/download the repository, install the locked development dependencies, then use Vite's local server:
 
 ```bash
 git clone https://github.com/kcchanai/UH-Trello.git
 cd UH-Trello
-# Open index.html in your browser
+npm ci
+npm run dev
 ```
+
+Vite serves the project at `http://127.0.0.1:5173/UH-Trello/` by default. `npm run build` creates the deployable static site in `dist/`; GitHub Actions publishes that built directory to GitHub Pages.
 
 ## Data and privacy
 
@@ -48,7 +53,10 @@ Flowboard stores data only in this browser using `localStorage`; it has no accou
 
 - `index.html` — semantic page structure, accessible dialog, and SVG icon sprite.
 - `styles.css` — responsive design system, components, light/dark themes, and reduced-motion support.
-- `app.js` — state schema, storage migration/validation, rendering, event delegation, and board interactions.
+- `app.js` — UI orchestration and DOM event handling; persistence is delegated to the configured local adapter.
+- `src/main.js` — Vite module entry that assembles runtime configuration, the domain helpers, and adapters.
+- `src/adapters/` — documented adapter contract, explicit unavailable-cloud boundary, and `LocalWorkspaceAdapter`.
+- `src/config.js` — public environment configuration detection; it exposes no credentials.
 - `state-core.js` — dependency-free state helpers shared by the app and Node unit tests.
 - `tests/` — Node unit tests and Chromium critical-workflow smoke tests.
 - `.github/workflows/validate.yml` — pull-request/main validation: unit, static, performance-budget, browser, and accessibility checks.
@@ -59,7 +67,7 @@ Flowboard stores data only in this browser using `localStorage`; it has no accou
 
 ## Deployment
 
-GitHub Pages serves `index.html` from the `main` branch root. After pushing changes, open the live site above once the GitHub Pages build completes.
+GitHub Actions validates the project, builds it with Vite, and publishes the generated `dist/` directory to GitHub Pages. The production build uses the `/UH-Trello/` base path. After pushing changes, open the live site above once the GitHub Pages workflow completes.
 
 ## Quality and release checks
 

@@ -18,26 +18,26 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: package.json
-      - name: Unit, syntax, static, and asset-budget checks
-        run: |
-          npm test
-          npm run check
+          cache-dependency-path: package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Unit, syntax, static, asset-budget, and build checks
+        run: npm run validate
       - name: Install ephemeral browser test tools
         run: |
           npm install --no-save --ignore-scripts @playwright/test@1.55.0 lighthouse@12.8.2
           npx playwright install --with-deps chromium
-      - name: Start static site
+      - name: Start Vite preview
         run: |
-          node scripts/static-server.mjs > server.log 2>&1 &
-          for i in {1..20}; do curl --fail --silent http://127.0.0.1:4173/ && exit 0; sleep 1; done
+          npm run preview -- --host 127.0.0.1 --port 4173 > server.log 2>&1 &
+          for i in {1..20}; do curl --fail --silent http://127.0.0.1:4173/UH-Trello/ && exit 0; sleep 1; done
           cat server.log
           exit 1
       - name: Browser critical-workflow checks
         run: npx playwright test tests/browser-smoke.spec.mjs
       - name: Automated accessibility check
         run: |
-          npx lighthouse http://127.0.0.1:4173/ --only-categories=accessibility --chrome-flags='--headless --no-sandbox' --output=json --output-path=lighthouse-report.json
+          npx lighthouse http://127.0.0.1:4173/UH-Trello/ --only-categories=accessibility --chrome-flags='--headless --no-sandbox' --output=json --output-path=lighthouse-report.json
           node scripts/assert-lighthouse.mjs
       - name: Archive diagnostics on failure
         if: failure()

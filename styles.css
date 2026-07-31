@@ -23,6 +23,7 @@ button, input { -webkit-tap-highlight-color:transparent; } svg { width:18px; hei
 .search-wrap:focus-within { border-color:#fff; background:rgba(255,255,255,.23); } .search-wrap svg { flex:none; width:17px; height:17px; }
 .search-wrap input { min-width:0; flex:1; height:36px; padding:0; color:#fff; outline:0; border:0; background:transparent; } .search-wrap input::placeholder { color:rgba(255,255,255,.76); }
 .clear-search { display:grid; place-items:center; width:27px; height:27px; padding:0; color:#fff; border-radius:4px; background:transparent; } .clear-search:hover { background:rgba(255,255,255,.18); } .clear-search svg { width:16px; height:16px; }
+.cloud-status { max-width:160px; overflow:hidden; color:rgba(255,255,255,.88); font-size:11px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
 .avatar { flex:none; display:grid; place-items:center; width:34px; height:34px; color:#1c2b41; border:2px solid rgba(255,255,255,.65); border-radius:50%; background:#ffd36a; font-size:12px; font-weight:800; }
 .icon-button,.button { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:36px; border-radius:var(--radius-sm); font-weight:700; transition:background .16s,transform .16s,box-shadow .16s; } .icon-button { width:36px; padding:0; color:inherit; background:rgba(255,255,255,.13); } .icon-button:hover { background:rgba(255,255,255,.25); }
 main { padding:26px 28px; }

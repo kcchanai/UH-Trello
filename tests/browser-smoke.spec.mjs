@@ -1,7 +1,7 @@
 import {test, expect} from '@playwright/test';
 
 test('critical local-first card workflow persists after reload', async ({page}) => {
-  await page.goto('/');
+  await page.goto('/UH-Trello/');
   await expect(page.getByRole('heading', {level: 1})).toContainText('Website Launch');
   const firstList = page.locator('.list').first();
   await firstList.getByRole('button', {name: /add a card/i}).click();
@@ -15,7 +15,7 @@ test('critical local-first card workflow persists after reload', async ({page}) 
 });
 
 test('card detail dialog closes with Escape and returns focus', async ({page}) => {
-  await page.goto('/');
+  await page.goto('/UH-Trello/');
   const card = page.locator('.card-open').first();
   await card.focus();
   await card.click();

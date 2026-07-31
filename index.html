@@ -26,7 +26,8 @@
     <button id="boards-button" class="workspace" type="button" aria-haspopup="dialog">My workspace</button>
     <div class="search-wrap" role="search"><svg><use href="#icon-search"></use></svg><input id="search" type="search" placeholder="Search cards" autocomplete="off" aria-label="Search cards" /><button id="clear-search" class="clear-search" type="button" aria-label="Clear search" hidden><svg><use href="#icon-close"></use></svg></button></div>
     <button id="theme-toggle" class="icon-button top-action" type="button" aria-label="Switch to dark theme" title="Switch theme"><svg><use href="#icon-moon"></use></svg></button>
-    <span class="avatar" aria-label="Signed in locally as AH">AH</span>
+    <output id="cloud-status" class="cloud-status" role="status" aria-live="polite">Local-only workspace</output>
+    <span class="avatar" aria-label="Working locally as AH">AH</span>
   </header>
 
   <main id="main-content">
@@ -95,7 +96,6 @@
   <div id="toast" class="toast" aria-hidden="true"></div>
   <div id="announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <noscript><p class="noscript">Flowboard needs JavaScript enabled to save and organize cards.</p></noscript>
-  <script src="state-core.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
