@@ -1,5 +1,7 @@
 # Flowboard authenticated collaboration implementation plan
 
+> **Superseded backend direction:** Aaron selected the no-cost Firebase Spark design on 2026-07-30. Phase A in this document remains historical context; use `FIREBASE_COLLABORATION_PLAN.md` for Phase B onward and `FIREBASE_OWNER_SETUP.md` for owner setup.
+
 ## Purpose
 
 Evolve Flowboard from a browser-local personal board into an optionally authenticated shared workspace while preserving local-only use, import/export, accessibility, and the existing GitHub Pages experience.

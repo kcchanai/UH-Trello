@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function memberDoc(workspaceId) {
+      return /databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid);
+    }
+    function member(workspaceId) { return get(memberDoc(workspaceId)).data; }
+    function isMember(workspaceId) { return signedIn() && exists(memberDoc(workspaceId)); }
+    function isOwner(workspaceId) { return isMember(workspaceId) && member(workspaceId).role == 'owner'; }
+    function canEdit(workspaceId) {
+      return isMember(workspaceId) && member(workspaceId).role in ['owner', 'editor'];
+    }
+    function validRole(role) { return role in ['owner', 'editor', 'viewer']; }
+    function verifiedInvitee(data) {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == data.emailLower;
+    }
+    function inviteDoc(workspaceId, inviteId) {
+      return get(/databases/$(database)/documents/workspaces/$(workspaceId)/invites/$(inviteId)).data;
+    }
+    function validInviteAcceptance(workspaceId) {
+      let invite = inviteDoc(workspaceId, request.resource.data.inviteId);
+      return verifiedInvitee(invite)
+        && invite.acceptedAt == null
+        && invite.revokedAt == null
+        && invite.expiresAt > request.time
+        && request.resource.data.role == invite.role
+        && request.resource.data.emailLower == invite.emailLower
+        && request.resource.data.uid == request.auth.uid;
+    }
+
+    match /users/{uid} {
+      allow read, create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    match /workspaces/{workspaceId} {
+      allow read: if isMember(workspaceId);
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && getAfter(memberDoc(workspaceId)).data.role == 'owner';
+      allow update, delete: if isOwner(workspaceId);
+
+      match /members/{uid} {
+        allow read: if isMember(workspaceId);
+        allow create: if signedIn() && validRole(request.resource.data.role) && (
+          (uid == request.auth.uid
+            && request.resource.data.role == 'owner'
+            && getAfter(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUid == uid)
+          || (isOwner(workspaceId) && request.resource.data.role in ['editor', 'viewer'])
+          || (uid == request.auth.uid && validInviteAcceptance(workspaceId))
+        );
+        allow update: if isOwner(workspaceId)
+          && resource.data.role != 'owner'
+          && request.resource.data.role in ['editor', 'viewer'];
+        allow delete: if isOwner(workspaceId) && resource.data.role != 'owner';
+      }
+
+      match /invites/{inviteId} {
+        allow read: if isOwner(workspaceId) || verifiedInvitee(resource.data);
+        allow create, delete: if isOwner(workspaceId);
+        allow update: if isOwner(workspaceId) || (
+          verifiedInvitee(resource.data)
+          && resource.data.acceptedAt == null
+          && resource.data.revokedAt == null
+          && resource.data.expiresAt > request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['acceptedAt', 'acceptedBy'])
+          && request.resource.data.acceptedBy == request.auth.uid
+          && request.resource.data.acceptedAt == request.time
+        );
+      }
+
+      match /boards/{document=**} {
+        allow read: if isMember(workspaceId);
+        allow create, update, delete: if canEdit(workspaceId);
+      }
+
+      match /activity/{activityId} {
+        allow read: if isMember(workspaceId);
+        allow create: if canEdit(workspaceId)
+          && request.resource.data.actorUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

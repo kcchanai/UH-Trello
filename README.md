@@ -1,6 +1,6 @@
 # Flowboard
 
-A lightweight, local-first project-planning board inspired by kanban tools. It is a static HTML/CSS/JavaScript site with no dependencies or build step.
+A lightweight, local-first project-planning board inspired by kanban tools. It uses vanilla HTML/CSS/JavaScript with a small Vite build and an adapter boundary for optional Firebase collaboration.
 
 **Live site:** https://kcchanai.github.io/UH-Trello/
 
@@ -29,7 +29,7 @@ A lightweight, local-first project-planning board inspired by kanban tools. It i
 - Forced-colors/high-contrast support, 200% reflow safeguards, and reduced-motion support.
 - Browser-local persistence and migration from the original MVP storage format.
 - A tested `LocalWorkspaceAdapter` boundary. The application does not bypass it for browser persistence, and unavailable cloud operations fail explicitly rather than imitating sign-in or sync.
-- Honest cloud-configuration status: until Supabase's public project configuration and server policies are supplied, Flowboard remains local-only.
+- Honest cloud-configuration status: until Firebase's public web configuration and tested Firestore Security Rules are supplied, Flowboard remains local-only.
 - A per-board **Collaboration plan** that records planned owner/editor/viewer roles and access mode locally, plus a clearly labelled local viewer-preview guard. It does not provide accounts, invitations, server authorization, or sync.
 
 ## Run locally
@@ -58,7 +58,10 @@ Flowboard stores data only in this browser using `localStorage`; it has no accou
 - `src/adapters/` — documented adapter contract, explicit unavailable-cloud boundary, and `LocalWorkspaceAdapter`.
 - `src/config.js` — public environment configuration detection; it exposes no credentials.
 - `state-core.js` — dependency-free state helpers shared by the app and Node unit tests.
-- `tests/` — Node unit tests and Chromium critical-workflow smoke tests.
+- `firebase.json`, `firestore.rules`, and `firestore.indexes.json` — Firebase Emulator/Firestore policy source; production deployment remains blocked until owner setup and rule tests pass.
+- `FIREBASE_COLLABORATION_PLAN.md` — active authenticated-collaboration roadmap.
+- `FIREBASE_OWNER_SETUP.md` — exact owner-only Firebase console setup and credential-safety checklist.
+- `tests/` — Node unit tests, Firestore Security Rules tests, and Chromium critical-workflow smoke tests.
 - `.github/workflows/validate.yml` — pull-request/main validation: unit, static, performance-budget, browser, and accessibility checks.
 - `RELEASE_NOTES.md` — release notes, dependency decision, budgets, and repeatable release commands.
 - `IMPROVEMENT_PLAN.md` — prioritized product and design roadmap.
@@ -71,14 +74,21 @@ GitHub Actions validates the project, builds it with Vite, and publishes the gen
 
 ## Quality and release checks
 
-Run the dependency-free checks locally with:
+Run the local application checks with:
 
 ```bash
 npm test
 npm run check
+npm run build
 ```
 
-GitHub Actions runs those checks for pull requests and `main`, then installs Playwright and Lighthouse ephemerally for Chromium critical-workflow and automated accessibility validation. They are CI-only tools: the deployed app remains dependency-free. The release gate also enforces an initial 140 KB budget for all initial HTML/CSS/JS assets and per-file ceilings; details and the documented dependency/license decision are in `RELEASE_NOTES.md`.
+Firestore Security Rules tests additionally require Java 21 and use a disposable Emulator Suite project:
+
+```bash
+npm run test:rules
+```
+
+GitHub Actions runs all of these checks for pull requests and `main`, then installs Playwright and Lighthouse ephemerally for Chromium critical-workflow and automated accessibility validation. The deployed client includes the pinned Firebase Web SDK only when cloud integration is implemented; Firebase CLI and browser test tools are not production runtime dependencies.
 
 ## Accessibility
 
@@ -88,4 +98,4 @@ The Phase 6 audit used Lighthouse accessibility against the locally served app (
 
 ## Collaboration status and next work
 
-Phase 7 now has a versioned local collaboration-plan data model, a functional local viewer preview, and a documented Supabase-oriented architecture decision. It is **not** real collaboration: this repository has no backend project/configuration or credentials, so accounts, invitations, server-side access control, realtime updates, presence, comments, notifications, offline reconciliation, and cross-browser convergence are blocked. `COLLABORATION_ARCHITECTURE.md` specifies the required configuration, security model, migration flow, and acceptance tests before an authenticated backend implementation should begin.
+Phase A established the local adapter and Vite/GitHub Pages build. The active cloud direction is now Firebase Authentication plus Cloud Firestore on the no-cost Spark plan. Version-controlled deny-by-default rules, emulator configuration, and a policy-test harness are being added before any sign-in UI is enabled. This is **not yet live collaboration**: production accounts, invitations, server-enforced access, and synchronization remain unavailable until Aaron completes `FIREBASE_OWNER_SETUP.md`, policy tests pass, and the reviewed rules are deployed. See `FIREBASE_COLLABORATION_PLAN.md` for the current roadmap.

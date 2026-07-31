@@ -19,10 +19,16 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - name: Install locked dependencies
         run: npm ci
       - name: Unit, syntax, static, asset-budget, and build checks
         run: npm run validate
+      - name: Firestore Security Rules tests
+        run: npm run test:rules
       - name: Install ephemeral browser test tools
         run: |
           npm install --no-save --ignore-scripts @playwright/test@1.55.0 lighthouse@12.8.2

@@ -1,18 +1,27 @@
-const value = (name) => import.meta.env?.[name]?.trim?.() || '';
+const value = name => import.meta.env?.[name]?.trim?.() || '';
 
 export const cloudConfig = Object.freeze({
-  url: value('VITE_SUPABASE_URL'),
-  anonKey: value('VITE_SUPABASE_ANON_KEY')
+  apiKey: value('VITE_FIREBASE_API_KEY'),
+  authDomain: value('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: value('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: value('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: value('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: value('VITE_FIREBASE_APP_ID')
 });
 
 export const cloudConfigured = Boolean(
-  /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(cloudConfig.url) && cloudConfig.anonKey
+  cloudConfig.apiKey
+  && /^[a-z0-9-]{4,30}$/i.test(cloudConfig.projectId)
+  && cloudConfig.authDomain
+  && cloudConfig.appId
 );
 
 export const cloudStatus = Object.freeze(cloudConfigured ? {
   configured: true,
-  message: 'Cloud configuration is present. Sign-in will be added after server policies are implemented.'
+  provider: 'firebase',
+  message: 'Firebase public configuration is present. Cloud access remains disabled until security-rule and authentication checks pass.'
 } : {
   configured: false,
-  message: 'Cloud workspaces are not configured. This board is saved locally in this browser.'
+  provider: 'firebase',
+  message: 'Firebase is not configured. This workspace is saved only in this browser.'
 });
