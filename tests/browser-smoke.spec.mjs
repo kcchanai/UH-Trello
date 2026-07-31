@@ -25,3 +25,16 @@ test('card detail dialog closes with Escape and returns focus', async ({page}) =
   await expect(dialog).toBeHidden();
   await expect(card).toBeFocused();
 });
+
+test('Google account dialog preserves an explicit local-only boundary', async ({page}) => {
+  await page.goto('/UH-Trello/');
+  const account = page.getByRole('button', {name: 'Sign in with Google'});
+  await account.click();
+  const dialog = page.getByRole('dialog', {name: 'Google sign-in'});
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Signing in does not upload, merge, replace, or delete this browser's workspace.");
+  await expect(dialog.getByRole('button', {name: 'Continue with Google'})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(account).toBeFocused();
+});

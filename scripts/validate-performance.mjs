@@ -3,12 +3,14 @@ import {readFile, stat} from 'node:fs/promises';
 const files = [
   'index.html', 'styles.css', 'state-core.js', 'app.js',
   'src/main.js', 'src/config.js',
-  'src/adapters/adapter-contract.js', 'src/adapters/local-workspace-adapter.js'
+  'src/auth-ui.js', 'src/adapters/adapter-contract.js', 'src/adapters/local-workspace-adapter.js',
+  'src/adapters/firebase-workspace-adapter.js'
 ];
 const limits = {
   'index.html': 20_000, 'styles.css': 40_000, 'state-core.js': 20_000, 'app.js': 80_000,
   'src/main.js': 8_000, 'src/config.js': 4_000,
-  'src/adapters/adapter-contract.js': 8_000, 'src/adapters/local-workspace-adapter.js': 12_000
+  'src/auth-ui.js': 8_000, 'src/adapters/adapter-contract.js': 8_000,
+  'src/adapters/local-workspace-adapter.js': 12_000, 'src/adapters/firebase-workspace-adapter.js': 8_000
 };
 let total = 0;
 for (const file of files) {

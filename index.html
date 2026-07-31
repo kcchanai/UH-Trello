@@ -27,7 +27,7 @@
     <div class="search-wrap" role="search"><svg><use href="#icon-search"></use></svg><input id="search" type="search" placeholder="Search cards" autocomplete="off" aria-label="Search cards" /><button id="clear-search" class="clear-search" type="button" aria-label="Clear search" hidden><svg><use href="#icon-close"></use></svg></button></div>
     <button id="theme-toggle" class="icon-button top-action" type="button" aria-label="Switch to dark theme" title="Switch theme"><svg><use href="#icon-moon"></use></svg></button>
     <output id="cloud-status" class="cloud-status" role="status" aria-live="polite">Local-only workspace</output>
-    <span class="avatar" aria-label="Working locally as AH">AH</span>
+    <button id="account-button" class="avatar account-button signed-out" type="button" aria-haspopup="dialog" aria-label="Sign in with Google">Sign in</button>
   </header>
 
   <main id="main-content">
@@ -82,6 +82,15 @@
       <section class="detail-section" aria-labelledby="members-heading"><div class="section-heading"><h3 id="members-heading">Planned members</h3><button id="add-collaboration-member" class="text-button" type="button">Add member</button></div><div id="collaboration-members" class="collaboration-members"></div></section>
       <footer class="dialog-actions"><button id="cancel-collaboration" class="button button-quiet" type="button">Cancel</button><button class="button button-primary" type="submit">Save local plan</button></footer>
     </form>
+  </dialog>
+  <dialog id="account-dialog" class="dialog account-dialog" aria-labelledby="account-heading" aria-describedby="account-safety">
+    <div class="archive-dialog-card">
+      <header class="card-dialog-header"><div><p class="eyebrow">Firebase account</p><h2 id="account-heading">Google sign-in</h2></div><button id="close-account-dialog" class="dialog-close" type="button" aria-label="Close account"><svg><use href="#icon-close"></use></svg></button></header>
+      <div class="account-profile"><span class="account-profile-mark" aria-hidden="true">G</span><div><strong id="account-name">Not signed in</strong><span id="account-email">Your local workspace remains available without an account.</span></div></div>
+      <p id="account-safety" class="collaboration-notice"><strong>Local data stays local.</strong> Signing in does not upload, merge, replace, or delete this browser's workspace. Cloud workspace migration will always require a separate review and confirmation.</p>
+      <p id="account-status" class="account-status" role="status" aria-live="polite"></p>
+      <div class="dialog-actions"><button id="account-sign-out" class="button button-quiet" type="button" hidden>Sign out</button><button id="google-sign-in" class="button button-primary" type="button">Continue with Google</button></div>
+    </div>
   </dialog>
   <dialog id="import-dialog" class="dialog import-dialog" aria-labelledby="import-heading">
     <div class="archive-dialog-card">

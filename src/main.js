@@ -4,13 +4,25 @@ import {createUnavailableCloudAdapter, CloudNotConfiguredError} from './adapters
 import {cloudConfig, cloudConfigured, cloudStatus} from './config.js';
 
 const State = globalThis.FlowboardState;
-
 if (!State) throw new Error('Flowboard state domain failed to initialize.');
+
+let cloudAdapter = createUnavailableCloudAdapter();
+let cloudInitializationError = null;
+if (cloudConfigured) {
+  try {
+    const {createFirebaseWorkspaceAdapter} = await import('./adapters/firebase-workspace-adapter.js');
+    cloudAdapter = createFirebaseWorkspaceAdapter(cloudConfig);
+  } catch (error) {
+    cloudInitializationError = error;
+    console.error('Flowboard could not initialize Firebase Authentication.', error);
+  }
+}
 
 globalThis.FlowboardRuntime = Object.freeze({
   cloudConfig,
   cloudConfigured,
   cloudStatus,
+  cloudInitializationError,
   localAdapter: createLocalWorkspaceAdapter({
     validWorkspace: State.validWorkspace,
     normalizeWorkspace: State.normalizeWorkspace,
@@ -18,8 +30,18 @@ globalThis.FlowboardRuntime = Object.freeze({
     makeWorkspace: State.makeWorkspace,
     clone: State.clone
   }),
-  cloudAdapter: createUnavailableCloudAdapter(),
+  cloudAdapter,
   CloudNotConfiguredError
 });
 
 await import('../app.js');
+
+if (cloudConfigured && !cloudInitializationError) {
+  const {initializeAuthUI} = await import('./auth-ui.js');
+  initializeAuthUI(cloudAdapter);
+} else if (cloudConfigured) {
+  const accountButton = document.querySelector('#account-button');
+  accountButton.disabled = true;
+  accountButton.textContent = 'Unavailable';
+  document.querySelector('#cloud-status').textContent = 'Firebase unavailable';
+}
