@@ -22,7 +22,7 @@
 
   <header class="topbar">
     <a class="brand" href="#board" aria-label="Flowboard home"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span><span>Flowboard</span></a>
-    <span class="workspace">My workspace</span>
+    <button id="boards-button" class="workspace" type="button" aria-haspopup="dialog">My workspace</button>
     <div class="search-wrap" role="search"><svg><use href="#icon-search"></use></svg><input id="search" type="search" placeholder="Search cards" autocomplete="off" aria-label="Search cards" /><button id="clear-search" class="clear-search" type="button" aria-label="Clear search" hidden><svg><use href="#icon-close"></use></svg></button></div>
     <button id="theme-toggle" class="icon-button top-action" type="button" aria-label="Switch to dark theme" title="Switch theme"><svg><use href="#icon-moon"></use></svg></button>
     <span class="avatar" aria-label="Signed in locally as AH">AH</span>
@@ -64,6 +64,7 @@
     </form>
   </dialog>
   <dialog id="archive-dialog" class="dialog archive-dialog" aria-labelledby="archive-heading"><div class="archive-dialog-card"><header class="card-dialog-header"><div><p class="eyebrow">Recovery</p><h2 id="archive-heading">Archived cards</h2></div><button id="close-archive-dialog" class="dialog-close" type="button" aria-label="Close archived cards"><svg><use href="#icon-close"></use></svg></button></header><div id="archive-list" class="archive-list"></div></div></dialog>
+  <dialog id="workspace-dialog" class="dialog workspace-dialog" aria-labelledby="workspace-heading"><div class="archive-dialog-card"><header class="card-dialog-header"><div><p class="eyebrow">My workspace</p><h2 id="workspace-heading">Your boards</h2></div><button id="close-workspace-dialog" class="dialog-close" type="button" aria-label="Close boards"><svg><use href="#icon-close"></use></svg></button></header><div id="workspace-board-list" class="workspace-board-list"></div><form id="new-board-form" class="new-board-form"><label class="field"><span>New board</span><input id="new-board-title" required maxlength="80" placeholder="e.g., Editorial calendar" /></label><label class="field"><span>Start from</span><select id="board-template"><option value="blank">Blank board</option><option value="launch">Website launch</option><option value="tasks">Personal tasks</option></select></label><button class="button button-primary" type="submit">Create board</button></form></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <noscript><p class="noscript">Flowboard needs JavaScript enabled to save and organize cards.</p></noscript>
   <script src="app.js"></script>
