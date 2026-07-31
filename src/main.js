@@ -38,11 +38,12 @@ globalThis.FlowboardRuntime = Object.freeze({
 await import('../app.js');
 
 if (cloudConfigured && !cloudInitializationError) {
-  const [{initializeAuthUI}, {initializeCloudWorkspaceUI}] = await Promise.all([
-    import('./auth-ui.js'), import('./cloud-workspace-ui.js')
+  const [{initializeAuthUI}, {initializeCloudWorkspaceUI}, {initializeInviteUI}] = await Promise.all([
+    import('./auth-ui.js'), import('./cloud-workspace-ui.js'), import('./invite-ui.js')
   ]);
   const cloudUI = initializeCloudWorkspaceUI({localAdapter, cloudAdapter});
-  initializeAuthUI(cloudAdapter, {onSessionChange:session => cloudUI.setSession(session)});
+  const inviteUI = initializeInviteUI(cloudAdapter);
+  initializeAuthUI(cloudAdapter, {onSessionChange:session => { cloudUI.setSession(session); inviteUI.setSession(session); }});
 } else if (cloudConfigured) {
   const accountButton = document.querySelector('#account-button');
   accountButton.disabled = true;

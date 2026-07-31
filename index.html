@@ -111,6 +111,14 @@
       <div class="dialog-actions"><button id="return-to-local-workspace" class="button button-quiet" type="button" hidden>Return to local workspace</button><button id="export-cloud-workspace" class="button button-primary" type="button" hidden>Export cloud JSON</button></div>
     </div>
   </dialog>
+  <dialog id="invite-dialog" class="dialog" aria-labelledby="invite-heading" aria-describedby="invite-status">
+    <div class="archive-dialog-card">
+      <header class="card-dialog-header"><div><p class="eyebrow">Workspace invitation</p><h2 id="invite-heading">Join a cloud workspace</h2></div><button id="close-invite-dialog" class="dialog-close" type="button" aria-label="Close invitation"><svg><use href="#icon-close"></use></svg></button></header>
+      <p class="collaboration-notice"><strong>Account authorization happens first.</strong> The invitation link does not grant access on its own. Sign in with the invited, verified Google account to continue.</p>
+      <p id="invite-status" class="account-status" role="status" aria-live="polite"></p>
+      <div class="dialog-actions"><button id="invite-sign-in" class="button button-quiet" type="button">Sign in with Google</button><button id="accept-invite" class="button button-primary" type="button" hidden>Accept invitation</button></div>
+    </div>
+  </dialog>
   <dialog id="import-dialog" class="dialog import-dialog" aria-labelledby="import-heading">
     <div class="archive-dialog-card">
       <header class="card-dialog-header"><div><p class="eyebrow">Data portability</p><h2 id="import-heading">Import Flowboard data</h2></div><button id="close-import-dialog" class="dialog-close" type="button" aria-label="Close import"><svg><use href="#icon-close"></use></svg></button></header>
