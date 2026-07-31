@@ -43,7 +43,7 @@ test('compact cloud-copy status fits the responsive top bar', async ({page}) => 
   await page.setViewportSize({width: 573, height: 500});
   await page.goto('/UH-Trello/');
   const status = page.locator('#cloud-status');
-  await status.evaluate(element => { element.textContent = 'Cloud copy · local active'; });
+  await status.evaluate(element => { element.textContent = 'Cloud copy · local'; });
   const dimensions = await status.evaluate(element => ({clientWidth:element.clientWidth, scrollWidth:element.scrollWidth}));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
 });
