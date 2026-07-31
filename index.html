@@ -35,7 +35,7 @@
       <output id="search-count" class="search-count" aria-live="polite"></output>
       <div class="filter-actions"><button id="filter-toggle" class="button button-quiet" type="button" aria-expanded="false">Filters</button><div id="filter-panel" class="filter-panel" hidden><label>Due <select id="due-filter"><option value="all">Any date</option><option value="overdue">Overdue</option><option value="today">Due today</option><option value="upcoming">Upcoming</option><option value="complete">Complete</option></select></label><label>Label <select id="label-filter"><option value="all">Any label</option><option value="green">Green</option><option value="purple">Purple</option><option value="orange">Orange</option><option value="red">Red</option></select></label><button id="clear-filters" class="text-button" type="button">Clear filters</button></div></div>
       <div class="board-actions">
-        <button id="collaboration-button" class="button button-quiet collaboration-button" type="button" aria-haspopup="dialog"><span>Collaboration plan</span></button>
+        <button id="collaboration-button" class="button button-quiet collaboration-button" type="button" aria-haspopup="dialog" aria-label="Collaboration plan"><span>Collaboration plan</span></button>
         <output id="collaboration-summary" class="collaboration-summary" aria-live="polite">Local owner · owner · local-only</output>
         <button id="board-menu" class="button button-quiet" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Board actions"><svg><use href="#icon-more"></use></svg><span>Board actions</span></button>
         <div id="board-menu-panel" class="menu-panel" role="menu" hidden>
@@ -95,6 +95,7 @@
   <div id="toast" class="toast" aria-hidden="true"></div>
   <div id="announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <noscript><p class="noscript">Flowboard needs JavaScript enabled to save and organize cards.</p></noscript>
+  <script src="state-core.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

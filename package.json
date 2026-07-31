@@ -1,0 +1,10 @@
+{
+  "name": "flowboard",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Dependency-free static Flowboard validation scripts",
+  "scripts": {
+    "test": "node --test tests/state-core.test.js",
+    "check": "node --check state-core.js && node --check app.js && node scripts/validate-static.mjs && node scripts/validate-performance.mjs"
+  }
+}

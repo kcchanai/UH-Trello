@@ -1,0 +1,27 @@
+import {test, expect} from '@playwright/test';
+
+test('critical local-first card workflow persists after reload', async ({page}) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', {level: 1})).toContainText('Website Launch');
+  const firstList = page.locator('.list').first();
+  await firstList.getByRole('button', {name: /add a card/i}).click();
+  const title = `Release smoke ${Date.now()}`;
+  await firstList.getByLabel('New card title').fill(title);
+  await firstList.getByRole('button', {name: 'Add card'}).click();
+  const createdCard = page.locator('.card-open').filter({hasText: title});
+  await expect(createdCard).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.card-open').filter({hasText: title})).toBeVisible();
+});
+
+test('card detail dialog closes with Escape and returns focus', async ({page}) => {
+  await page.goto('/');
+  const card = page.locator('.card-open').first();
+  await card.focus();
+  await card.click();
+  const dialog = page.locator('#card-dialog');
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(card).toBeFocused();
+});

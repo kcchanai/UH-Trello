@@ -49,6 +49,10 @@ Flowboard stores data only in this browser using `localStorage`; it has no accou
 - `index.html` — semantic page structure, accessible dialog, and SVG icon sprite.
 - `styles.css` — responsive design system, components, light/dark themes, and reduced-motion support.
 - `app.js` — state schema, storage migration/validation, rendering, event delegation, and board interactions.
+- `state-core.js` — dependency-free state helpers shared by the app and Node unit tests.
+- `tests/` — Node unit tests and Chromium critical-workflow smoke tests.
+- `.github/workflows/validate.yml` — pull-request/main validation: unit, static, performance-budget, browser, and accessibility checks.
+- `RELEASE_NOTES.md` — release notes, dependency decision, budgets, and repeatable release commands.
 - `IMPROVEMENT_PLAN.md` — prioritized product and design roadmap.
 - `VALIDATION_CHECKLIST.md` — repeatable acceptance checks.
 - `COLLABORATION_ARCHITECTURE.md` — Phase 7 decision record, safe integration boundary, server-side security requirements, and release gates.
@@ -56,6 +60,17 @@ Flowboard stores data only in this browser using `localStorage`; it has no accou
 ## Deployment
 
 GitHub Pages serves `index.html` from the `main` branch root. After pushing changes, open the live site above once the GitHub Pages build completes.
+
+## Quality and release checks
+
+Run the dependency-free checks locally with:
+
+```bash
+npm test
+npm run check
+```
+
+GitHub Actions runs those checks for pull requests and `main`, then installs Playwright and Lighthouse ephemerally for Chromium critical-workflow and automated accessibility validation. They are CI-only tools: the deployed app remains dependency-free. The release gate also enforces an initial 140 KB budget for all initial HTML/CSS/JS assets and per-file ceilings; details and the documented dependency/license decision are in `RELEASE_NOTES.md`.
 
 ## Accessibility
 
