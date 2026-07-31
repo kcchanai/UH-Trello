@@ -224,5 +224,8 @@ test('ownership transfer rejects partial changes and only permits a complete ato
   await assertSucceeds(setDoc(doc(successor, 'workspaces', 'transfer', 'members', 'post-transfer-viewer'), {
     uid:'post-transfer-viewer', role:'viewer', emailLower:'post-transfer-viewer@example.com'
   }));
-  await assertFails(setDoc(doc(owner, 'workspaces', 'transfer', 'boards', 'after-transfer'), {title:'Denied'}));
+  await assertSucceeds(setDoc(doc(owner, 'workspaces', 'transfer', 'boards', 'after-transfer'), {title:'Editor still allowed'}));
+  await assertFails(setDoc(doc(owner, 'workspaces', 'transfer', 'members', 'former-owner-escalation'), {
+    uid:'former-owner-escalation', role:'viewer', emailLower:'former-owner-escalation@example.com'
+  }));
 });
