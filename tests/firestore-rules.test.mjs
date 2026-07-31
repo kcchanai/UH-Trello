@@ -50,6 +50,11 @@ before(async () => {
       createdAt:Timestamp.fromMillis(Date.now() - 60_000), acceptedAt:null, acceptedBy:null, revokedAt:null,
       expiresAt:Timestamp.fromMillis(Date.now() + 3_600_000)
     });
+    await setDoc(doc(db, 'workspaces', 'alpha', 'invites', 'invite-profile-required'), {
+      emailLower:'profile-required@example.com', role:'editor', createdBy:'owner-a',
+      createdAt:Timestamp.fromMillis(Date.now() - 60_000), acceptedAt:null, acceptedBy:null, revokedAt:null,
+      expiresAt:Timestamp.fromMillis(Date.now() + 3_600_000)
+    });
     await setDoc(doc(db, 'workspaces', 'alpha', 'invites', 'invite-revocable'), {
       emailLower:'revoked@example.com', role:'viewer', createdBy:'owner-a',
       createdAt:Timestamp.fromMillis(Date.now() - 60_000), acceptedAt:null, acceptedBy:null, revokedAt:null,
@@ -89,7 +94,7 @@ const invitation = ({emailLower, role = 'viewer', expiresInDays = 6} = {}) => ({
   acceptedBy:null
 });
 
-async function acceptInvite(db, workspaceId, inviteId, uid, email, role) {
+async function acceptInvite(db, workspaceId, inviteId, uid, email, role, includeProfile = true) {
   const batch = writeBatch(db);
   batch.set(doc(db, 'workspaces', workspaceId, 'members', uid), {
     uid, role, emailLower:email, inviteId
@@ -97,6 +102,7 @@ async function acceptInvite(db, workspaceId, inviteId, uid, email, role) {
   batch.update(doc(db, 'workspaces', workspaceId, 'invites', inviteId), {
     acceptedAt:serverTimestamp(), acceptedBy:uid
   });
+  if (includeProfile) batch.set(doc(db, 'users', uid), {uid, emailLower:email, workspaceIds:[workspaceId]}, {merge:true});
   return batch.commit();
 }
 
@@ -170,6 +176,11 @@ test('invite acceptance cannot be completed without the matching membership writ
   await assertFails(updateDoc(doc(invitee, 'workspaces', 'alpha', 'invites', 'invite-incomplete'), {
     acceptedAt:serverTimestamp(), acceptedBy:'incomplete-uid'
   }));
+});
+
+test('invite acceptance must atomically add the workspace to the accepting user profile', async () => {
+  const invitee = dbFor('profile-missing-uid', 'profile-required@example.com');
+  await assertFails(acceptInvite(invitee, 'alpha', 'invite-profile-required', 'profile-missing-uid', 'profile-required@example.com', 'editor', false));
 });
 
 test('expired invitations deny read and acceptance', async () => {

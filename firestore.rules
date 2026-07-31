@@ -66,6 +66,7 @@ service cloud.firestore {
     function validInviteAcceptance(workspaceId, inviteId) {
       let invite = resource.data;
       let joinedMember = getAfter(memberDoc(workspaceId, request.auth.uid)).data;
+      let profileAfter = getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data;
       return activeInviteForCurrentUser(invite)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['acceptedAt', 'acceptedBy'])
         && request.resource.data.acceptedAt == request.time
@@ -73,7 +74,9 @@ service cloud.firestore {
         && joinedMember.uid == request.auth.uid
         && joinedMember.role == invite.role
         && joinedMember.emailLower == invite.emailLower
-        && joinedMember.inviteId == inviteId;
+        && joinedMember.inviteId == inviteId
+        && profileAfter.workspaceIds is list
+        && profileAfter.workspaceIds.hasAll([workspaceId]);
     }
     function validOwnershipTransfer(workspaceId) {
       let previousOwner = resource.data.ownerUid;
