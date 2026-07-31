@@ -1,91 +1,126 @@
-# Phase 7 collaboration architecture
+# Flowboard Firebase collaboration architecture
 
 ## Status
 
-Flowboard remains a dependency-free, GitHub Pages-hosted, local-first application. There is **no configured identity provider, database, backend, realtime channel, or credential** in this repository. The `Collaboration plan` dialog is intentionally local-only: it saves per-board planning metadata in browser `localStorage` and provides a local viewer-preview guard. It does not grant access, send invitations, authenticate a person, synchronize a second browser, or secure local data.
+Flowboard is a GitHub Pages-hosted, local-first application with real Firebase Google Authentication and an explicit, backup-first verified Firestore cloud-copy path.
 
-The browser state schema is now version 4. Each board can carry this forward-compatible shape:
+- Local-only Flowboard remains fully usable without an account or network connection.
+- Signing in never uploads, replaces, hides, or merges browser-local data.
+- A signed-in owner can deliberately download a local JSON backup, create a separate cloud workspace, upload a cloud copy, and verify the remote write/read-back.
+- That cloud copy is not yet a shared editable workspace. Workspace discovery, invitations, member administration, granular cloud documents, realtime synchronization, and multi-account release validation remain in the sequential plan.
+- Firestore Security Rules—not client-side controls or Firebase public configuration—are the authorization boundary.
 
-```json
-{
-  "collaboration": {
-    "access": "private",
-    "currentMemberId": "stable-id",
-    "members": [
-      { "id": "stable-id", "name": "Local owner", "role": "owner", "addedAt": "ISO-8601" }
-    ],
-    "updatedAt": "ISO-8601"
-  }
-}
-```
-
-Allowed planned roles are `owner`, `editor`, and `viewer`; planned access values are `private`, `shared`, and `read-only`. The viewer preview blocks ordinary in-app local mutations, but it is explicitly not authorization—browser storage can be modified by the device user.
+The complete, current order of work is [`TERRA_NEXT_PHASES_PLAN.md`](TERRA_NEXT_PHASES_PLAN.md). This document records the selected architecture and the constraints future work must preserve.
 
 ## Decision record
 
-**Recommended path if collaboration becomes a funded product requirement: Supabase.** It best fits a static GitHub Pages client while providing managed authentication, PostgreSQL row-level security (RLS), realtime subscriptions, and an exportable relational data model. A Firebase implementation is viable but has more vendor-specific data/query patterns; a custom API offers maximum control but adds the largest security, operations, and incident-response burden.
+**Selected architecture:** Firebase Authentication (Google provider) + Cloud Firestore Standard edition + Firebase Security Rules, with GitHub Pages/Vite continuing as the static host.
 
-| Criterion | Supabase | Firebase | Small custom API |
+| Criterion | Firebase selected design | Shared Drive JSON | Small custom API |
 | --- | --- | --- | --- |
-| Authentication / authorization | Managed auth plus PostgreSQL RLS | Managed auth plus Security Rules | Must build and operate |
-| Per-board roles | Relational membership table + RLS | Document rules + membership fields | Must build and test |
-| Realtime | Postgres changes / presence channels | Firestore listeners | WebSocket or polling service |
-| GitHub Pages fit | Public URL + anon client key only | Public web config only | Separate hosted API and CORS |
-| Exportability | SQL/Postgres export | Requires planned export pipeline | Depends on implementation |
-| Security maintenance | Managed platform, RLS policy review still required | Managed platform, rule review still required | Highest burden |
+| Authentication | Firebase Google Auth and stable `uid` | Browser Google tokens and ACLs | Must build/operate |
+| Server authorization | Firestore Rules and workspace membership | File ACLs, weak per-record enforcement | Must build/test every endpoint |
+| Realtime structured edits | Active-board Firestore listeners | Polling or whole-file replacement | WebSockets/polling service |
+| GitHub Pages fit | Public Firebase Web config only | Browser-access tokens required | Separate hosted API and CORS |
+| Spark/no-cost start | Bounded Auth and Firestore quota | Storage/API quota | Hosting/operations cost |
+| Operations | Rules/indexes plus quota review | Token/ACL/revision management | Highest security/incident burden |
 
-This is an architecture recommendation, not a deployment decision. Reassess pricing, service limits, data residency, and product privacy requirements against current vendor documentation before implementation.
+Firebase public Web App fields identify the browser application; they are not secrets and do not authorize access. Service-account JSON, Admin SDK credentials, OAuth client secrets, private keys, passwords, Firebase CI tokens, and real `.env` files are prohibited from this repository and browser bundle.
 
-## Proposed Supabase boundary
+## Authorization model
 
-Keep all secrets out of this repository and out of GitHub Pages. The browser may receive only intentionally public endpoint/configuration and a public anonymous key. Never expose a service-role key.
+Membership is attached to a workspace, never a board.
 
-1. Create a Supabase project and configure approved sign-in providers and redirect URLs for the GitHub Pages origin.
-2. Add a non-committed, deployment-injected public configuration file or build-time environment adapter. Do not add a project URL or key until an owner supplies them.
-3. Add tables for `boards`, `board_members`, `lists`, `cards`, `comments`, and append-only `activity_events`; use stable IDs and timestamps already present in local data.
-4. Require RLS on every table. Policies must derive access from `auth.uid()` and board membership, never from client-supplied role or board identifiers alone.
-5. Expose client operations through a `collaborationAdapter` interface, so local storage remains the default adapter and remote behavior is opt-in only after a valid authenticated session.
-6. Subscribe only to boards the session is authorized to read. Use server timestamps, revisions, and an idempotency key for queued mutations.
-
-Suggested adapter surface:
-
-```js
-const collaborationAdapter = {
-  getSession: async () => null,
-  signIn: async () => { throw new Error('Not configured'); },
-  signOut: async () => {},
-  fetchBoard: async (boardId) => {},
-  subscribeToBoard: (boardId, onEvent) => () => {},
-  applyMutation: async (mutation) => {},
-  importWorkspace: async (workspace) => {}
-};
+```text
+roles:
+  owner  — workspace lifecycle, membership, invitations, ownership transfer, content administration
+  editor — workspace content create/edit/move/archive
+  viewer — workspace content read only
 ```
 
-The local adapter must continue to work with no account, network, or backend configuration.
+A project-level Google Cloud/Firebase Owner is distinct from a Flowboard workspace `owner`.
 
-## Required server-side model and enforcement
+### Firestore paths
 
-- `board_members(board_id, user_id, role)` is the source of truth for `owner`, `editor`, and `viewer` roles.
-- Every board/list/card/comment mutation checks membership on the server. Viewers have read access only; no client-only UI condition can satisfy this requirement.
-- Invitations must be server-generated, expiring, single-purpose tokens with rate limits and audit events; do not encode role authority into an unsigned client link.
-- Removal/revocation changes membership first, terminates/rejects subscriptions, and rejects subsequent reads and writes immediately.
-- Validate input sizes/types server-side; HTML-escape browser rendering as Flowboard already does for user-entered strings.
-- Provide retention, export, deletion, privacy, and abuse-reporting policy before accepting personal data.
+```text
+users/{uid}
 
-## Realtime and conflict plan
+workspaces/{workspaceId}
+workspaces/{workspaceId}/members/{uid}
+workspaces/{workspaceId}/invites/{inviteId}
+workspaces/{workspaceId}/boards/{boardId}
+workspaces/{workspaceId}/boards/{boardId}/lists/{listId}
+workspaces/{workspaceId}/boards/{boardId}/cards/{cardId}
+workspaces/{workspaceId}/activity/{eventId}
+```
 
-Use an append-only mutation/event record containing `id`, `boardId`, `actorId`, `clientMutationId`, `baseRevision`, `serverRevision`, `type`, `payload`, and server time. The server serializes board revision changes. Clients apply ordered events, deduplicate by `clientMutationId`, and refetch on a revision gap.
+Cards are sibling documents to lists and carry `listId` plus a sortable rank. This allows a card move to be one atomic update rather than a cross-subcollection delete/create.
 
-For a conflicting field edit, use explicit last-write-wins only where product-approved; for ordered cards, use a fractional/rank position model and server-side validation. Do not silently overwrite a remote edit. Presence and cursor hints remain ephemeral channels and are not audit records.
+### Invitation model
 
-## Offline migration and validation gates
+The first invitation release uses a copyable link. The link includes random workspace/invitation identifiers but is not authority by itself.
 
-1. Keep `flowboard-workspace` as the local source until a signed-in user explicitly chooses a migration.
-2. Preview counts and validate the local workspace before upload, just as the current import flow does.
-3. Upload in idempotent batches with a migration identifier; retain the local workspace until a verified export/checksum or completion confirmation.
-4. Queue offline mutations with client mutation IDs and reconcile after sign-in/reconnect. Show conflict or retry state; never pretend a queued write reached collaborators.
-5. Test with two authenticated browsers, direct API attempts as viewer, member revocation, reconnect after offline edits, and cross-board ID tampering before release.
+1. An owner creates a random, expiring editor/viewer invitation for a normalized Google email.
+2. The owner sends the copied link using an existing communication channel; no paid email service or Cloud Function is required.
+3. The recipient signs in with Firebase Google Auth.
+4. Rules permit reading/accepting only if the authenticated verified email exactly matches the active invitation.
+5. Acceptance atomically creates the member document and marks that invitation accepted by the same UID.
+6. Revocation is a durable state; the link becomes unreadable/unacceptable.
 
-## Phase 7 exit criteria
+Ordinary member edits cannot create or promote an `owner`. A dedicated atomic ownership-transfer operation changes `workspace.ownerUid`, promotes an existing editor/viewer, and demotes the previous owner. It must never leave zero owners.
 
-Do not claim collaboration complete until two authenticated browsers converge on a shared board; viewers are blocked both in UI and direct API requests; revoked members immediately lose access; and local-only use remains available without an account.
+## Local/cloud boundary and migration
+
+`flowboard-workspace` and its browser recovery/export tooling remain the local source of truth unless a person explicitly selects a cloud action.
+
+The cloud-copy migration is intentionally two-stage:
+
+1. Preview local board/list/card counts and serialized size.
+2. Require a timestamped local JSON download before writes are enabled.
+3. Bootstrap workspace, authenticated owner membership, and the owner's profile reference in one authorized batch.
+4. Upload content in a separate bounded batch after membership exists.
+5. Read back workspace metadata and board IDs/counts before reporting success.
+6. Leave the browser-local original active. The compact status **Cloud copy · local** means the cloud copy was verified while local persistence remains active.
+
+Cloud workspace switching, preview, and editing are later phases. There is no implicit migration and no automatic synchronization.
+
+## Realtime, conflicts, and revocation plan
+
+Do not subscribe to an entire account or every board. Shared editing will subscribe only to the active workspace, current membership, and active board/list/card data, then unsubscribe promptly on selection changes, sign-out, role loss, or removal.
+
+Each cloud mutation will use:
+
+- an opaque `clientMutationId` for idempotency/activity correlation;
+- integer document revision and transaction precondition checks;
+- server timestamps;
+- atomic batches for linked structural updates;
+- sortable/fractional ranks with bounded rebalance batches for order changes.
+
+A stale revision must surface a reload/reapply conflict state rather than silently overwrite another person's edit. Pending, synced, offline, retrying, and access-removed states must be truthful.
+
+The initial shared release should use memory-only Firestore state rather than persistent disk caching. Persistent cloud caching can retain content after a membership revocation and requires a separate privacy/revocation design before adoption.
+
+## Validation and release gates
+
+Client UI hiding is usability only. Before collaboration is called secure or ready, validate both the Firestore Emulator and deployed direct Firestore calls from separate real Google accounts:
+
+- anonymous denial;
+- owner/editor/viewer positive and negative operations;
+- non-member and cross-workspace isolation;
+- malformed/forged IDs;
+- email-matched, unverified, expired, revoked, and reused invitation cases;
+- self-leave, member removal, ownership transfer, and last-owner protection;
+- viewer direct-write denial;
+- immediate revocation while listeners are active;
+- two-browser convergence, conflicts, offline/reconnect, and mutation deduplication.
+
+Every collaboration milestone also requires local-only regression checks, keyboard/focus behavior, responsive widths, reduced motion/forced colors, Lighthouse accessibility, performance budgets, successful CI, and a cache-busted GitHub Pages console check.
+
+## Operational and privacy constraints
+
+- Keep GitHub Pages. Firebase Hosting and App Hosting are not needed.
+- Do not use Cloud Functions, phone authentication, paid email delivery, or a custom server in the initial release.
+- Spark quotas are bounded and subject to change; review official Firebase pricing before beta.
+- Batch reorders, avoid presence heartbeats unless justified, and surface quota failures instead of losing writes.
+- Before accepting institutional, FERPA-covered, employment, or other controlled data, obtain the appropriate UH approval. The project's `Unmanaged` parent does not itself guarantee independence from institutional policy.
+- Before release, document exports, deletion, retention, membership visibility, account-data handling, and redacted diagnostics.

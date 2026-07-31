@@ -2,33 +2,111 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function memberDoc(workspaceId) {
-      return /databases/$(database)/documents/workspaces/$(workspaceId)/members/$(request.auth.uid);
+    function verifiedEmail() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string;
     }
-    function member(workspaceId) { return get(memberDoc(workspaceId)).data; }
-    function isMember(workspaceId) { return signedIn() && exists(memberDoc(workspaceId)); }
+    function workspaceDoc(workspaceId) {
+      return /databases/$(database)/documents/workspaces/$(workspaceId);
+    }
+    function memberDoc(workspaceId, uid) {
+      return /databases/$(database)/documents/workspaces/$(workspaceId)/members/$(uid);
+    }
+    function currentMemberDoc(workspaceId) {
+      return memberDoc(workspaceId, request.auth.uid);
+    }
+    function member(workspaceId) { return get(currentMemberDoc(workspaceId)).data; }
+    function isMember(workspaceId) { return signedIn() && exists(currentMemberDoc(workspaceId)); }
     function isOwner(workspaceId) { return isMember(workspaceId) && member(workspaceId).role == 'owner'; }
     function canEdit(workspaceId) {
       return isMember(workspaceId) && member(workspaceId).role in ['owner', 'editor'];
     }
     function validRole(role) { return role in ['owner', 'editor', 'viewer']; }
-    function verifiedInvitee(data) {
-      return signedIn()
-        && request.auth.token.email_verified == true
-        && request.auth.token.email == data.emailLower;
+    function invitePath(workspaceId, inviteId) {
+      return /databases/$(database)/documents/workspaces/$(workspaceId)/invites/$(inviteId);
     }
-    function inviteDoc(workspaceId, inviteId) {
-      return get(/databases/$(database)/documents/workspaces/$(workspaceId)/invites/$(inviteId)).data;
+    function inviteDoc(workspaceId, inviteId) { return get(invitePath(workspaceId, inviteId)).data; }
+    function validInviteShape(data) {
+      return data.keys().hasAll(['emailLower', 'role', 'createdBy', 'createdAt', 'expiresAt', 'revokedAt', 'acceptedAt', 'acceptedBy'])
+        && data.keys().hasOnly(['emailLower', 'role', 'createdBy', 'createdAt', 'expiresAt', 'revokedAt', 'acceptedAt', 'acceptedBy'])
+        && data.emailLower is string
+        && data.emailLower.size() > 2
+        && data.emailLower.size() <= 320
+        && data.role in ['editor', 'viewer']
+        && data.createdBy == request.auth.uid
+        && data.createdAt == request.time
+        && data.expiresAt > request.time
+        && data.expiresAt <= request.time + duration.value(7, 'd')
+        && data.revokedAt == null
+        && data.acceptedAt == null
+        && data.acceptedBy == null;
     }
-    function validInviteAcceptance(workspaceId) {
-      let invite = inviteDoc(workspaceId, request.resource.data.inviteId);
-      return verifiedInvitee(invite)
-        && invite.acceptedAt == null
-        && invite.revokedAt == null
-        && invite.expiresAt > request.time
+    function activeInviteForCurrentUser(data) {
+      return verifiedEmail()
+        && request.auth.token.email == data.emailLower
+        && data.acceptedAt == null
+        && data.acceptedBy == null
+        && data.revokedAt == null
+        && data.expiresAt > request.time;
+    }
+    function validInviteMembershipCreate(workspaceId, uid) {
+      let inviteId = request.resource.data.inviteId;
+      let invite = inviteDoc(workspaceId, inviteId);
+      let accepted = getAfter(invitePath(workspaceId, inviteId)).data;
+      return request.resource.data.keys().hasAll(['uid', 'role', 'emailLower', 'inviteId'])
+        && request.resource.data.uid == uid
+        && uid == request.auth.uid
+        && activeInviteForCurrentUser(invite)
         && request.resource.data.role == invite.role
         && request.resource.data.emailLower == invite.emailLower
-        && request.resource.data.uid == request.auth.uid;
+        && accepted.acceptedAt == request.time
+        && accepted.acceptedBy == request.auth.uid;
+    }
+    function validInviteAcceptance(workspaceId, inviteId) {
+      let invite = resource.data;
+      let joinedMember = getAfter(memberDoc(workspaceId, request.auth.uid)).data;
+      return activeInviteForCurrentUser(invite)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['acceptedAt', 'acceptedBy'])
+        && request.resource.data.acceptedAt == request.time
+        && request.resource.data.acceptedBy == request.auth.uid
+        && joinedMember.uid == request.auth.uid
+        && joinedMember.role == invite.role
+        && joinedMember.emailLower == invite.emailLower
+        && joinedMember.inviteId == inviteId;
+    }
+    function validOwnershipTransfer(workspaceId) {
+      let previousOwner = resource.data.ownerUid;
+      let nextOwner = request.resource.data.ownerUid;
+      let oldOwnerAfter = getAfter(memberDoc(workspaceId, previousOwner)).data;
+      let newOwnerBefore = get(memberDoc(workspaceId, nextOwner)).data;
+      let newOwnerAfter = getAfter(memberDoc(workspaceId, nextOwner)).data;
+      return isOwner(workspaceId)
+        && previousOwner == request.auth.uid
+        && nextOwner != previousOwner
+        && newOwnerBefore.role in ['editor', 'viewer']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerUid', 'updatedAt'])
+        && oldOwnerAfter.uid == previousOwner
+        && oldOwnerAfter.role in ['editor', 'viewer']
+        && newOwnerAfter.uid == nextOwner
+        && newOwnerAfter.role == 'owner';
+    }
+    function validTransferredMemberUpdate(workspaceId, uid) {
+      let workspaceAfter = getAfter(workspaceDoc(workspaceId)).data;
+      let previousOwner = get(workspaceDoc(workspaceId)).data.ownerUid;
+      return isOwner(workspaceId)
+        && previousOwner == request.auth.uid
+        && workspaceAfter.ownerUid != previousOwner
+        && (
+          (uid == previousOwner
+            && resource.data.role == 'owner'
+            && request.resource.data.uid == uid
+            && request.resource.data.role in ['editor', 'viewer'])
+          || (uid == workspaceAfter.ownerUid
+            && resource.data.role in ['editor', 'viewer']
+            && request.resource.data.uid == uid
+            && request.resource.data.role == 'owner')
+        );
     }
 
     match /users/{uid} {
@@ -40,36 +118,47 @@ service cloud.firestore {
       allow read: if isMember(workspaceId);
       allow create: if signedIn()
         && request.resource.data.ownerUid == request.auth.uid
-        && getAfter(memberDoc(workspaceId)).data.role == 'owner';
-      allow update, delete: if isOwner(workspaceId);
+        && getAfter(memberDoc(workspaceId, request.auth.uid)).data.uid == request.auth.uid
+        && getAfter(memberDoc(workspaceId, request.auth.uid)).data.role == 'owner';
+      allow update: if isOwner(workspaceId) && (
+        request.resource.data.ownerUid == resource.data.ownerUid || validOwnershipTransfer(workspaceId)
+      );
+      allow delete: if isOwner(workspaceId);
 
       match /members/{uid} {
         allow read: if isMember(workspaceId);
-        allow create: if signedIn() && validRole(request.resource.data.role) && (
-          (uid == request.auth.uid
-            && request.resource.data.role == 'owner'
-            && getAfter(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUid == uid)
-          || (isOwner(workspaceId) && request.resource.data.role in ['editor', 'viewer'])
-          || (uid == request.auth.uid && validInviteAcceptance(workspaceId))
+        allow create: if signedIn()
+          && request.resource.data.uid == uid
+          && validRole(request.resource.data.role)
+          && (
+            (uid == request.auth.uid
+              && request.resource.data.role == 'owner'
+              && getAfter(workspaceDoc(workspaceId)).data.ownerUid == uid)
+            || (isOwner(workspaceId) && request.resource.data.role in ['editor', 'viewer'])
+            || (uid == request.auth.uid && validInviteMembershipCreate(workspaceId, uid))
+          );
+        allow update: if validTransferredMemberUpdate(workspaceId, uid) || (
+          isOwner(workspaceId)
+          && resource.data.role in ['editor', 'viewer']
+          && request.resource.data.uid == uid
+          && request.resource.data.emailLower == resource.data.emailLower
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+          && request.resource.data.role in ['editor', 'viewer']
         );
-        allow update: if isOwner(workspaceId)
-          && resource.data.role != 'owner'
-          && request.resource.data.role in ['editor', 'viewer'];
-        allow delete: if isOwner(workspaceId) && resource.data.role != 'owner';
+        allow delete: if (uid == request.auth.uid && resource.data.role != 'owner')
+          || (isOwner(workspaceId) && resource.data.role != 'owner');
       }
 
       match /invites/{inviteId} {
-        allow read: if isOwner(workspaceId) || verifiedInvitee(resource.data);
-        allow create, delete: if isOwner(workspaceId);
-        allow update: if isOwner(workspaceId) || (
-          verifiedInvitee(resource.data)
-          && resource.data.acceptedAt == null
+        allow read: if isOwner(workspaceId) || activeInviteForCurrentUser(resource.data);
+        allow create: if isOwner(workspaceId) && validInviteShape(request.resource.data);
+        allow update: if (isOwner(workspaceId)
           && resource.data.revokedAt == null
-          && resource.data.expiresAt > request.time
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['acceptedAt', 'acceptedBy'])
-          && request.resource.data.acceptedBy == request.auth.uid
-          && request.resource.data.acceptedAt == request.time
-        );
+          && resource.data.acceptedAt == null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revokedAt'])
+          && request.resource.data.revokedAt == request.time)
+          || validInviteAcceptance(workspaceId, inviteId);
+        allow delete: if false;
       }
 
       match /boards/{document=**} {

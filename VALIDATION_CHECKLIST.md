@@ -41,12 +41,22 @@ Run these checks before publishing a Flowboard change.
 - [ ] Simulate a storage write failure in DevTools if practical and verify Flowboard clearly advises exporting/checking browser storage.
 - [ ] Verify schema 1, 2, and 3 workspace envelopes normalize to schema 4 without a crash.
 
-## Phase 7 local collaboration readiness
+## Firebase authentication and cloud-copy safety
 
-- [ ] Open **Collaboration plan** and confirm its local-only/security limitation is visible before controls.
-- [ ] Add/remove planned members, select private/shared/read-only future access, select a local preview member, save, and reload; verify schema-4 metadata persists.
-- [ ] Select a viewer preview and verify a card mutation is blocked with a clear local-only message and no new card is stored.
-- [ ] Confirm `COLLABORATION_ARCHITECTURE.md` remains explicit that no backend/account/realtime behavior exists until configuration and server-side authorization are implemented.
+- [ ] Sign in with Google on the deployed GitHub Pages URL; verify account initials, session reload persistence, and sign-out.
+- [ ] Confirm sign-in alone leaves the browser workspace local-only and leaves `flowboard-workspace` unchanged.
+- [ ] Open **Create cloud copy**, verify the local count/size preview, and download the timestamped JSON backup before cloud writes are enabled.
+- [ ] Create the cloud copy, verify the returned board count/IDs, and confirm the header says **Cloud copy · local** with its full tooltip/accessibility explanation.
+- [ ] Refresh at the reported 573 px responsive width; the exact post-copy status has no horizontal truncation.
+- [ ] Confirm local boards/cards remain present and editable after the cloud copy completes.
+
+## Firebase authorization gates before member UI
+
+- [ ] `npm run test:rules` passes against the Firestore Emulator.
+- [ ] Emulator tests cover anonymous denial, workspace isolation, owner/editor/viewer boundaries, protected owner membership, self-leave, invitation email verification/expiry/revocation/single-use, and atomic ownership transfer.
+- [ ] Materially changed `firestore.rules` are published to production before invitation/member UI is exposed.
+- [ ] Separate real Google accounts verify owner/editor/viewer/non-member direct Firestore access after each production rule publication.
+- [ ] Keep `COLLABORATION_ARCHITECTURE.md` and `TERRA_NEXT_PHASES_PLAN.md` current; client UI is never treated as authorization.
 
 ## Visual and accessibility checks
 
