@@ -46,9 +46,13 @@ Run these checks before publishing a Flowboard change.
 - [ ] Inspect at desktop width, 700 px, 440 px, and 320 px.
 - [ ] Verify board lanes intentionally scroll horizontally without clipping controls.
 - [ ] Toggle the theme and inspect contrast, panel separation, and readable text.
-- [ ] Tab through top-bar controls, board title, list controls, cards, and dialogs; focus is always visible.
-- [ ] Use only keyboard controls for text entry, menu opening, search clear, and dialog confirmation/cancellation.
-- [ ] Enable reduced motion in the operating system/browser and verify no disruptive animation remains.
+- [ ] Tab through the skip link, top-bar controls, board title, list controls, cards, and dialogs; focus is always visible.
+- [ ] Use only keyboard controls for text entry, menu opening (Arrow keys/Home/End/Escape), search clear, card opening, Alt+Arrow card movement, and dialog confirmation/cancellation.
+- [ ] Verify card buttons announce title, list, and position; verify save/add/move/archive/delete/filter/undo outcomes reach the polite live region.
+- [ ] Open every dialog, verify the first useful control receives focus, press Escape, and confirm focus returns to the initiating control.
+- [ ] Test at 200% zoom and 320 px width: no control is lost and only the intentional board lane scrolls horizontally.
+- [ ] Enable forced colors/high contrast and reduced motion; verify borders/focus remain legible and no disruptive animation remains.
+- [ ] Run `npx --yes lighthouse http://127.0.0.1:4173/ --only-categories=accessibility --chrome-flags='--headless --no-sandbox'` against a local `python -m http.server 4173`; require score 1 and no failed audits.
 - [ ] Confirm each visible control has an actual behavior or is omitted.
 
 ## Release checks

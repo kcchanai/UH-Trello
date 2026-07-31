@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <a class="skip-link" href="#board">Skip to board</a>
   <svg class="svg-sprite" aria-hidden="true" focusable="false">
     <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></symbol>
@@ -28,13 +29,13 @@
     <span class="avatar" aria-label="Signed in locally as AH">AH</span>
   </header>
 
-  <main>
-    <section class="board-header" aria-label="Board controls">
-      <div class="board-heading"><svg aria-hidden="true"><use href="#icon-board"></use></svg><input id="board-title" class="board-title" aria-label="Board title" value="Website Launch" /></div>
+  <main id="main-content">
+    <section class="board-header" aria-labelledby="board-page-heading">
+      <div class="board-heading"><svg aria-hidden="true"><use href="#icon-board"></use></svg><h1 id="board-page-heading" class="visually-hidden">Current board</h1><input id="board-title" class="board-title" aria-label="Board title" value="Website Launch" /></div>
       <output id="search-count" class="search-count" aria-live="polite"></output>
       <div class="filter-actions"><button id="filter-toggle" class="button button-quiet" type="button" aria-expanded="false">Filters</button><div id="filter-panel" class="filter-panel" hidden><label>Due <select id="due-filter"><option value="all">Any date</option><option value="overdue">Overdue</option><option value="today">Due today</option><option value="upcoming">Upcoming</option><option value="complete">Complete</option></select></label><label>Label <select id="label-filter"><option value="all">Any label</option><option value="green">Green</option><option value="purple">Purple</option><option value="orange">Orange</option><option value="red">Red</option></select></label><button id="clear-filters" class="text-button" type="button">Clear filters</button></div></div>
       <div class="board-actions">
-        <button id="board-menu" class="button button-quiet" type="button" aria-haspopup="menu" aria-expanded="false"><svg><use href="#icon-more"></use></svg><span>Board actions</span></button>
+        <button id="board-menu" class="button button-quiet" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Board actions"><svg><use href="#icon-more"></use></svg><span>Board actions</span></button>
         <div id="board-menu-panel" class="menu-panel" role="menu" hidden>
           <button type="button" role="menuitem" data-action="show-archive">Archived cards</button>
           <button type="button" role="menuitem" data-action="export-workspace">Export workspace (JSON)</button>
@@ -45,10 +46,10 @@
         </div>
       </div>
     </section>
-    <section id="board" class="board" aria-label="Project board"></section>
+    <section id="board" class="board" aria-label="Project board" tabindex="-1"></section>
   </main>
 
-  <dialog id="confirm-dialog" class="dialog">
+  <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
     <form method="dialog" class="dialog-card" id="confirm-form">
       <div class="dialog-icon"><svg><use href="#icon-trash"></use></svg></div>
       <div><h2 id="confirm-title">Are you sure?</h2><p id="confirm-message">This action cannot be undone.</p></div>
@@ -79,7 +80,8 @@
     </div>
   </dialog>
   <div class="floating-actions"><button id="undo-action" class="button undo-action" type="button" hidden disabled>Undo</button></div>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="toast" class="toast" aria-hidden="true"></div>
+  <div id="announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <noscript><p class="noscript">Flowboard needs JavaScript enabled to save and organize cards.</p></noscript>
   <script src="app.js"></script>
 </body>

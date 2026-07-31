@@ -23,7 +23,10 @@ A lightweight, local-first project-planning board inspired by kanban tools. It i
 - Duplicate a card from its detail view.
 - Edit the board title.
 - Light/dark visual themes.
-- Accessible custom confirmation dialog for destructive actions.
+- Accessible native dialogs with labelled content, Escape dismissal, and focus returned to the initiating control.
+- Semantic landmarks, a skip-to-board link, card lists with screen-reader card positions, and live announcements for saves, filters, and mutations.
+- Keyboard-operable board-action menu (Arrow keys, Home/End, Escape), card details, keyboard card movement, and 44 px coarse-pointer targets.
+- Forced-colors/high-contrast support, 200% reflow safeguards, and reduced-motion support.
 - Browser-local persistence and migration from the original MVP storage format.
 
 ## Run locally
@@ -52,6 +55,12 @@ Flowboard stores data only in this browser using `localStorage`; it has no accou
 
 GitHub Pages serves `index.html` from the `main` branch root. After pushing changes, open the live site above once the GitHub Pages build completes.
 
+## Accessibility
+
+Flowboard is designed for keyboard and assistive-technology use: use the skip link to reach the board, **Enter** to open a card, **Alt + Arrow keys** to move a focused card, and Arrow keys/Home/End/Escape in **Board actions**. Native dialogs contain their focus while open and return it when closed. Cards announce their list and visible position; save, filter, add, move, archive, delete, and undo outcomes are announced through a polite live region.
+
+The Phase 6 audit used Lighthouse accessibility against the locally served app (score: **100**, no failed audits), plus practical browser checks for dialog focus return, menu keyboard behavior, a keyboard-created persisted card, 200% zoom/reflow, reduced-motion CSS, and desktop visual layout. Browser-local storage and drag-and-drop remain local-only; no screen-reader testing can substitute for testing with a user’s chosen assistive technology.
+
 ## Planned next work
 
-The next roadmap milestone is the formal accessibility and inclusive-use audit: automated and manual checks for keyboard, screen-reader, high-contrast, zoom, and reduced-motion behavior. See `IMPROVEMENT_PLAN.md` for the complete phased plan.
+Phase 7 is intentionally optional: evaluate an explicit collaboration architecture only if accounts and shared boards become a real requirement. See `IMPROVEMENT_PLAN.md` for the complete roadmap.
