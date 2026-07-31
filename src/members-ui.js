@@ -11,7 +11,7 @@ export function initializeMembersUI(adapter) {
   const refresh = async () => {
     const active = activeWorkspace(); workspaceId = active?.id || null;
     if (!session || !workspaceId) { open.hidden = true; dialog.close(); return; }
-    open.hidden = false; message('Loading workspace access…'); membersList.replaceChildren(); invitesList.replaceChildren(); linkStatus.textContent = '';
+    open.hidden = false; message('Loading workspace access…'); membersList.replaceChildren(); invitesList.replaceChildren();
     try {
       const members = await adapter.listMembers(workspaceId), self = members.find(item => item.uid === session.uid); owner = self?.role === 'owner';
       if (!self) throw new Error('not-member');
@@ -28,7 +28,7 @@ export function initializeMembersUI(adapter) {
       successor.replaceChildren();
       members.filter(member => member.uid !== session.uid && ['editor', 'viewer'].includes(member.role)).forEach(member => successor.add(new Option(member.displayName || member.emailLower || member.uid, member.uid)));
       transferForm.querySelector('button[type="submit"]').disabled = successor.options.length === 0;
-      if (owner) { const invites = await adapter.listInvites(workspaceId); invites.filter(item => !item.revokedAt && !item.acceptedAt).forEach(invite => { const row = document.createElement('div'), title = document.createElement('strong'), revoke = document.createElement('button'); row.className = 'workspace-board'; title.textContent = `${invite.role} invitation`; revoke.type='button'; revoke.className='button button-quiet'; revoke.textContent='Revoke'; revoke.addEventListener('click', async () => { await adapter.revokeInvite(workspaceId, invite.id); refresh(); }); row.append(title, revoke); invitesList.append(row); }); }
+      if (owner) { const invites = await adapter.listInvites(workspaceId); invites.filter(item => !item.revokedAt && !item.acceptedAt).forEach(invite => { const row = document.createElement('div'), title = document.createElement('strong'), copyButton = document.createElement('button'), revoke = document.createElement('button'); row.className = 'workspace-board'; title.textContent = `${invite.role} invitation`; copyButton.type='button'; copyButton.className='button button-quiet'; copyButton.textContent='Copy link'; copyButton.addEventListener('click', () => { const url = new URL(window.location.href); url.searchParams.set('workspace', workspaceId); url.searchParams.set('invite', invite.id); copy(url.toString()); }); revoke.type='button'; revoke.className='button button-quiet'; revoke.textContent='Revoke'; revoke.addEventListener('click', async () => { await adapter.revokeInvite(workspaceId, invite.id); refresh(); }); row.append(title, copyButton, revoke); invitesList.append(row); }); }
       message(owner ? 'Owner access: create, revoke, and manage editor/viewer access.' : `You have ${self.role} access.`);
     } catch (error) { console.error('Flowboard member administration failed.', error); message('Workspace access could not be loaded. Local data is unchanged.'); open.hidden = true; }
   };
