@@ -131,7 +131,7 @@
       undoHistory = []; openCardId = null; render(); window.dispatchEvent(new Event('flowboard:cloud-preview-change')); say(`Viewing “${activeWorkspace.name}” as a read-only cloud preview. Your local workspace is unchanged.`);
     },
     returnToLocal() {
-      state = loadState(); activeWorkspace = {kind:'local'}; undoHistory = []; openCardId = null; applyTheme(); render(); say('Returned to your browser-local workspace.');
+      state = loadState(); activeWorkspace = {kind:'local'}; undoHistory = []; openCardId = null; applyTheme(); render(); window.dispatchEvent(new Event('flowboard:cloud-preview-change')); say('Returned to your browser-local workspace.');
     },
     exportCloudPreview() {
       if (activeWorkspace.kind !== 'cloud-preview') throw new Error('Open a cloud preview before exporting it.');

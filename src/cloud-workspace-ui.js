@@ -134,6 +134,12 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
     catch (error) { workspacesStatus.textContent = 'Open a cloud preview before exporting it.'; }
   });
 
+  window.addEventListener('flowboard:cloud-preview-change', () => {
+    const preview = globalThis.FlowboardApp?.getMode().kind === 'cloud-preview';
+    returnLocal.hidden = !preview; exportCloud.hidden = !preview;
+    if (!preview && workspacesDialog.open) { workspacesList.replaceChildren(); workspacesStatus.textContent = 'Workspace access ended. Your browser-local workspace is active.'; }
+  });
+
   return {
     setSession(next) {
       session = next;
