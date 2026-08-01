@@ -1,7 +1,7 @@
 import {granularizeBoard, rehydrateGranularWorkspace} from '../granular-workspace.js';
 import {
   arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, orderBy, query,
-  serverTimestamp, Timestamp, updateDoc, writeBatch
+  runTransaction, serverTimestamp, Timestamp, updateDoc, writeBatch
 } from 'firebase/firestore';
 
 const requireUser = auth => {
@@ -19,10 +19,13 @@ export async function listCloudWorkspaces(app, auth) {
   const db = getFirestore(app), user = requireUser(auth);
   const userSnapshot = await getDoc(doc(db, 'users', user.uid));
   const ids = [...new Set(userSnapshot.data()?.workspaceIds || [])].filter(id => typeof id === 'string' && id).slice(0, 100);
-  const results = await Promise.allSettled(ids.map(id => getDoc(doc(db, 'workspaces', id))));
-  return results.flatMap((result, index) => result.status === 'fulfilled' && result.value.exists()
-    ? [{id:result.value.id, ...result.value.data()}]
-    : []);
+  const results = await Promise.allSettled(ids.map(async id => {
+    const [workspace, membership] = await Promise.all([
+      getDoc(doc(db, 'workspaces', id)), getDoc(doc(db, 'workspaces', id, 'members', user.uid))
+    ]);
+    return workspace.exists() && membership.exists() ? {id:workspace.id, ...workspace.data(), role:membership.data().role} : null;
+  }));
+  return results.flatMap(result => result.status === 'fulfilled' && result.value ? [result.value] : []);
 }
 
 export async function fetchCloudWorkspace(app, auth, workspaceId) {
@@ -53,9 +56,9 @@ export async function migrateWorkspaceToGranular(app, auth, workspaceId) {
   const writes = [];
   granular.forEach(item => {
     const boardRef = doc(db, 'workspaces', workspaceId, 'boards', item.board.id);
-    writes.push({ref:boardRef, data:{...item.board, granularVersion:1, updatedAt:serverTimestamp()}, options:{merge:true}});
-    item.lists.forEach(list => writes.push({ref:doc(boardRef, 'lists', list.id), data:{...list, granularVersion:1, updatedAt:serverTimestamp()}, options:{merge:true}}));
-    item.cards.forEach(card => writes.push({ref:doc(boardRef, 'cards', card.id), data:{...card, granularVersion:1, updatedAt:serverTimestamp()}, options:{merge:true}}));
+    writes.push({ref:boardRef, data:{...item.board, granularVersion:1, revision:0, clientMutationId:randomId(), updatedAt:serverTimestamp()}, options:{merge:true}});
+    item.lists.forEach(list => writes.push({ref:doc(boardRef, 'lists', list.id), data:{...list, granularVersion:1, revision:0, clientMutationId:randomId(), updatedAt:serverTimestamp()}, options:{merge:true}}));
+    item.cards.forEach(card => writes.push({ref:doc(boardRef, 'cards', card.id), data:{...card, granularVersion:1, revision:0, clientMutationId:randomId(), updatedAt:serverTimestamp()}, options:{merge:true}}));
   });
   for (let index = 0; index < writes.length; index += 400) { const batch = writeBatch(db); writes.slice(index, index + 400).forEach(write => batch.set(write.ref, write.data, write.options)); await batch.commit(); }
   const verified = await Promise.all(boards.docs.map(async item => {
@@ -66,6 +69,56 @@ export async function migrateWorkspaceToGranular(app, auth, workspaceId) {
   if (!verified.every(Boolean)) throw Object.assign(new Error('Granular cloud migration could not be verified. The legacy snapshots were preserved.'), {code:'MIGRATION_VERIFICATION_FAILED'});
   await updateDoc(workspaceRef, {status:'ready', migration:{version:1, state:'verified', counts, verifiedAt:serverTimestamp()}, updatedAt:serverTimestamp()});
   return {alreadyMigrated:false, ...counts};
+}
+
+export async function applyCloudMutation(app, auth, {workspaceId, boardId, entity, entityId, revision, clientMutationId, patch}) {
+  const db = getFirestore(app); requireUser(auth);
+  if (!['boards', 'lists', 'cards'].includes(entity) || !/^[A-Za-z0-9_-]{16,128}$/.test(clientMutationId || '') || !Number.isInteger(revision) || revision < 0 || !patch || typeof patch !== 'object') throw Object.assign(new Error('The cloud edit request is invalid.'), {code:'INVALID_MUTATION'});
+  const ref = entity === 'boards' ? doc(db, 'workspaces', workspaceId, 'boards', entityId) : doc(db, 'workspaces', workspaceId, 'boards', boardId, entity, entityId);
+  await runTransaction(db, async transaction => {
+    const current = await transaction.get(ref);
+    if (!current.exists()) throw Object.assign(new Error('The cloud item no longer exists.'), {code:'MUTATION_TARGET_MISSING'});
+    const data = current.data();
+    if ((data.revision ?? 0) !== revision) throw Object.assign(new Error('This cloud item changed elsewhere. Reload before retrying.'), {code:'REVISION_CONFLICT'});
+    transaction.update(ref, {...patch, revision:revision + 1, clientMutationId, updatedAt:serverTimestamp()});
+  });
+}
+
+const comparable = value => JSON.stringify(value, (key, item) => ['revision', 'clientMutationId', 'updatedAt'].includes(key) ? undefined : item);
+const granularDocuments = workspace => {
+  const documents = new Map();
+  (workspace.boards || []).forEach((snapshot, boardRank) => {
+    const board = granularizeBoard(snapshot, boardRank);
+    documents.set(`boards/${board.board.id}`, {data:board.board});
+    board.lists.forEach(list => documents.set(`boards/${board.board.id}/lists/${list.id}`, {data:list}));
+    board.cards.forEach(card => documents.set(`boards/${board.board.id}/cards/${card.id}`, {data:card}));
+  });
+  return documents;
+};
+
+export async function applyCloudWorkspaceMutation(app, auth, {workspaceId, before, next, clientMutationId}) {
+  const db = getFirestore(app); requireUser(auth);
+  if (!/^[A-Za-z0-9_-]{16,128}$/.test(clientMutationId || '') || !before || !next) throw Object.assign(new Error('The cloud edit request is invalid.'), {code:'INVALID_MUTATION'});
+  const previous = granularDocuments(before), desired = granularDocuments(next);
+  const paths = [...new Set([...previous.keys(), ...desired.keys()])].filter(path => comparable(previous.get(path)?.data) !== comparable(desired.get(path)?.data));
+  if (paths.length > 300) throw Object.assign(new Error('This edit changes too many cloud records. Make a smaller edit and try again.'), {code:'MUTATION_TOO_LARGE'});
+  await runTransaction(db, async transaction => {
+    for (const path of paths) {
+      const prior = previous.get(path), target = desired.get(path), ref = doc(db, 'workspaces', workspaceId, ...path.split('/'));
+      const current = await transaction.get(ref), expectedRevision = prior?.data.revision ?? 0;
+      if (target && current.exists() && current.data().clientMutationId === clientMutationId && (current.data().revision ?? 0) === expectedRevision + 1) continue;
+      if (!current.exists() && prior) throw Object.assign(new Error('This cloud item no longer exists.'), {code:'REVISION_CONFLICT'});
+      if (current.exists() && (current.data().revision ?? 0) !== expectedRevision) throw Object.assign(new Error('This cloud workspace changed elsewhere. Reload before retrying.'), {code:'REVISION_CONFLICT'});
+      if (!target) transaction.delete(ref);
+      else {
+        const data = {...target.data};
+        delete data.revision; delete data.clientMutationId; delete data.updatedAt;
+        if (current.exists()) { delete data.createdAt; transaction.update(ref, {...data, revision:expectedRevision + 1, clientMutationId, updatedAt:serverTimestamp()}); }
+        else transaction.set(ref, {...data, revision:0, clientMutationId, updatedAt:serverTimestamp()});
+      }
+    }
+  });
+  return fetchCloudWorkspace(app, auth, workspaceId);
 }
 
 export async function uploadLocalWorkspace(app, auth, {name, workspace}) {
@@ -101,7 +154,7 @@ export async function uploadLocalWorkspace(app, auth, {name, workspace}) {
 
   const upload = writeBatch(db);
   cloudBoards.forEach((board, rank) => upload.set(doc(db, 'workspaces', workspaceId, 'boards', board.id), {
-    title:board.title || 'Untitled board', rank, snapshot:board, updatedAt:serverTimestamp()
+    title:board.title || 'Untitled board', rank, snapshot:board, revision:0, clientMutationId:randomId(), updatedAt:serverTimestamp()
   }));
   upload.update(workspaceRef, {status:'ready', updatedAt:serverTimestamp()});
   await upload.commit();

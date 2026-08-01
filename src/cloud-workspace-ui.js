@@ -91,7 +91,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
     if (!session) return;
     accountDialog.close(); workspacesDialog.showModal(); workspacesList.replaceChildren();
     workspacesStatus.textContent = 'Loading cloud workspaces…';
-    returnLocal.hidden = globalThis.FlowboardApp?.getMode().kind !== 'cloud-preview';
+    returnLocal.hidden = !['cloud-preview','cloud'].includes(globalThis.FlowboardApp?.getMode().kind);
     exportCloud.hidden = returnLocal.hidden;
     try {
       const entries = await cloudAdapter.listWorkspaces();
@@ -101,22 +101,24 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
         workspacesStatus.textContent = 'No cloud workspaces are available to this account yet.';
         return;
       }
-      workspacesStatus.textContent = 'Choose a workspace to open a read-only preview.';
+      workspacesStatus.textContent = 'Choose a verified workspace to open. Owners and editors can explicitly enter cloud edit mode.';
       entries.forEach(entry => {
         const button = document.createElement('button');
         button.type = 'button'; button.className = 'workspace-board';
         const title = document.createElement('strong'), detail = document.createElement('span');
         title.textContent = entry.name || 'Untitled cloud workspace';
-        detail.textContent = entry.ownerUid === session.uid ? 'Owned cloud workspace · read-only preview' : 'Shared cloud workspace · read-only preview';
+        const editable = ['owner','editor'].includes(entry.role) && entry.migration?.state === 'verified';
+        detail.textContent = editable ? `Cloud workspace · ${entry.role} · editable` : 'Cloud workspace · read-only preview';
         button.append(title, detail);
         button.addEventListener('click', async () => {
-          button.disabled = true; workspacesStatus.textContent = 'Opening read-only cloud preview…';
+          button.disabled = true; workspacesStatus.textContent = editable ? 'Opening editable cloud workspace…' : 'Opening read-only cloud preview…';
           try {
             const cloudWorkspace = await cloudAdapter.fetchWorkspace(entry.id);
-            globalThis.FlowboardApp.openCloudPreview(cloudWorkspace, entry);
-            selectedCloudEntry = entry; returnLocal.hidden = false; exportCloud.hidden = false;
+            if (editable) globalThis.FlowboardApp.openCloudWorkspace(cloudWorkspace, entry);
+            else globalThis.FlowboardApp.openCloudPreview(cloudWorkspace, entry);
+            selectedCloudEntry = entry; returnLocal.hidden = false; exportCloud.hidden = editable;
             migrateCloud.hidden = entry.ownerUid !== session.uid || entry.migration?.state === 'verified';
-            workspacesStatus.textContent = `Viewing “${entry.name || 'Untitled cloud workspace'}” as a read-only preview. Local data is unchanged.`;
+            workspacesStatus.textContent = editable ? `Editing “${entry.name || 'Untitled cloud workspace'}” in cloud mode. Local data is unchanged.` : `Viewing “${entry.name || 'Untitled cloud workspace'}” as a read-only preview. Local data is unchanged.`;
           } catch (error) {
             console.error('Flowboard could not open cloud workspace preview.', error);
             workspacesStatus.textContent = 'This cloud workspace could not be opened. Your local workspace is unchanged.';
@@ -154,9 +156,9 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
   });
 
   window.addEventListener('flowboard:cloud-preview-change', () => {
-    const preview = globalThis.FlowboardApp?.getMode().kind === 'cloud-preview';
-    returnLocal.hidden = !preview; exportCloud.hidden = !preview; migrateCloud.hidden = true;
-    if (!preview && workspacesDialog.open) { workspacesList.replaceChildren(); workspacesStatus.textContent = 'Workspace access ended. Your browser-local workspace is active.'; }
+    const mode = globalThis.FlowboardApp?.getMode().kind, cloudMode = ['cloud-preview','cloud'].includes(mode);
+    returnLocal.hidden = !cloudMode; exportCloud.hidden = mode !== 'cloud-preview'; migrateCloud.hidden = true;
+    if (!cloudMode && workspacesDialog.open) { workspacesList.replaceChildren(); workspacesStatus.textContent = 'Workspace access ended. Your browser-local workspace is active.'; }
   });
 
   return {

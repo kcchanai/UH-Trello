@@ -120,6 +120,20 @@ service cloud.firestore {
         && !profileAfter.workspaceIds.hasAll([workspaceId]);
     }
 
+    function validRevision() {
+      let prior = resource.data.keys().hasAll(['revision']) ? resource.data.revision : -1;
+      return request.resource.data.revision == prior + 1
+        && request.resource.data.clientMutationId is string
+        && request.resource.data.clientMutationId.size() >= 16
+        && request.resource.data.clientMutationId.size() <= 128;
+    }
+    function validInitialRevision() {
+      return request.resource.data.revision == 0
+        && request.resource.data.clientMutationId is string
+        && request.resource.data.clientMutationId.size() >= 16
+        && request.resource.data.clientMutationId.size() <= 128;
+    }
+
     match /users/{uid} {
       allow read, create, update: if signedIn() && request.auth.uid == uid;
       allow delete: if false;
@@ -172,9 +186,23 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      match /boards/{document=**} {
+      match /boards/{boardId} {
         allow read: if isMember(workspaceId);
-        allow create, update, delete: if canEdit(workspaceId);
+        allow create: if canEdit(workspaceId) && validInitialRevision();
+        allow update: if canEdit(workspaceId) && validRevision();
+        allow delete: if canEdit(workspaceId);
+        match /lists/{listId} {
+          allow read: if isMember(workspaceId);
+          allow create: if canEdit(workspaceId) && validInitialRevision();
+          allow update: if canEdit(workspaceId) && validRevision();
+          allow delete: if canEdit(workspaceId);
+        }
+        match /cards/{cardId} {
+          allow read: if isMember(workspaceId);
+          allow create: if canEdit(workspaceId) && validInitialRevision();
+          allow update: if canEdit(workspaceId) && validRevision();
+          allow delete: if canEdit(workspaceId);
+        }
       }
 
       match /activity/{activityId} {

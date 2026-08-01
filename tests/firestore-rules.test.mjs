@@ -129,7 +129,7 @@ test('owner can add editor/viewer members, but viewer cannot escalate or write b
 
 test('editor can write board content but cannot manage members', async () => {
   await assertSucceeds(setDoc(doc(dbFor('editor-a'), 'workspaces', 'alpha', 'boards', 'board-1'), {
-    title:'Shared board', rank:'a0'
+    title:'Shared board', rank:'a0', revision:0, clientMutationId:'mutation-identifier-0000'
   }));
   await assertFails(setDoc(doc(dbFor('editor-a'), 'workspaces', 'alpha', 'members', 'intruder'), {
     uid:'intruder', role:'editor', emailLower:'intruder@example.com'
@@ -139,14 +139,24 @@ test('editor can write board content but cannot manage members', async () => {
 test('owner can write granular migration documents while a viewer cannot forge them', async () => {
   const owner = dbFor('owner-a');
   await assertSucceeds(setDoc(doc(owner, 'workspaces', 'alpha', 'boards', 'granular-board', 'lists', 'list-1'), {
-    id:'list-1', title:'Migrated list', rank:0, granularVersion:1
+    id:'list-1', title:'Migrated list', rank:0, granularVersion:1, revision:0, clientMutationId:'mutation-identifier-0001'
   }));
   await assertSucceeds(setDoc(doc(owner, 'workspaces', 'alpha', 'boards', 'granular-board', 'cards', 'card-1'), {
-    id:'card-1', listId:'list-1', title:'Migrated card', rank:0, granularVersion:1
+    id:'card-1', listId:'list-1', title:'Migrated card', rank:0, granularVersion:1, revision:0, clientMutationId:'mutation-identifier-0002'
   }));
   await assertFails(setDoc(doc(dbFor('viewer-a'), 'workspaces', 'alpha', 'boards', 'granular-board', 'cards', 'forged'), {
-    id:'forged', listId:'list-1', title:'Blocked', rank:1
+    id:'forged', listId:'list-1', title:'Blocked', rank:1, revision:0, clientMutationId:'mutation-identifier-0003'
   }));
+});
+
+test('cloud content updates require an incremented revision and client mutation identifier', async () => {
+  const editor = dbFor('editor-a'), card = doc(editor, 'workspaces', 'alpha', 'boards', 'revision-board', 'cards', 'revision-card');
+  await assertSucceeds(setDoc(card, {id:'revision-card', listId:'list-a', title:'Initial', rank:0, revision:0, clientMutationId:'mutation-identifier-0004'}));
+  await assertFails(updateDoc(card, {title:'No revision'}));
+  await assertFails(updateDoc(card, {title:'Wrong revision', revision:2, clientMutationId:'mutation-identifier-0001'}));
+  await assertFails(updateDoc(card, {title:'Short mutation id', revision:1, clientMutationId:'short'}));
+  await assertSucceeds(updateDoc(card, {title:'Edited', revision:1, clientMutationId:'mutation-identifier-0001'}));
+  await assertFails(updateDoc(doc(dbFor('viewer-a'), 'workspaces', 'alpha', 'boards', 'revision-board', 'cards', 'revision-card'), {title:'Viewer edit', revision:2, clientMutationId:'mutation-identifier-0002'}));
 });
 
 test('owner bootstrap and backup-first board upload are permitted as separate verified writes', async () => {
@@ -166,7 +176,7 @@ test('owner bootstrap and backup-first board upload are permitted as separate ve
 
   const upload = writeBatch(owner);
   upload.set(doc(owner, 'workspaces', 'migration-workspace', 'boards', 'board-1'), {
-    title:'Imported board', rank:0, snapshot:{id:'board-1', title:'Imported board', lists:[]}
+    title:'Imported board', rank:0, snapshot:{id:'board-1', title:'Imported board', lists:[]}, revision:0, clientMutationId:'mutation-identifier-0005'
   });
   upload.update(doc(owner, 'workspaces', 'migration-workspace'), {status:'ready'});
   await assertSucceeds(upload.commit());

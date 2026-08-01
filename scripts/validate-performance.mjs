@@ -11,7 +11,7 @@ const limits = {
   'src/main.js': 8_000, 'src/config.js': 4_000,
   'src/auth-ui.js': 8_000, 'src/cloud-workspace-ui.js': 12_000, 'src/invite-ui.js': 8_000, 'src/members-ui.js': 12_000, 'src/adapters/adapter-contract.js': 8_000,
   'src/adapters/local-workspace-adapter.js': 12_000, 'src/adapters/firebase-workspace-adapter.js': 8_000,
-  'src/adapters/firebase-cloud-workspace.js': 14_000, 'src/granular-workspace.js': 6_000
+  'src/adapters/firebase-cloud-workspace.js': 18_000, 'src/granular-workspace.js': 6_000
 };
 let total = 0;
 for (const file of files) {
