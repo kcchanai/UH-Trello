@@ -94,7 +94,12 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
     exportCloud.hidden = returnLocal.hidden;
     try {
       const entries = await cloudAdapter.listWorkspaces();
-      if (!entries.length) { workspacesStatus.textContent = 'No cloud workspaces are available to this account yet.'; return; }
+      if (!entries.length) {
+        if (globalThis.FlowboardApp?.getMode().kind === 'cloud-preview') globalThis.FlowboardApp.returnToLocal();
+        returnLocal.hidden = true; exportCloud.hidden = true;
+        workspacesStatus.textContent = 'No cloud workspaces are available to this account yet.';
+        return;
+      }
       workspacesStatus.textContent = 'Choose a workspace to open a read-only preview.';
       entries.forEach(entry => {
         const button = document.createElement('button');
