@@ -1,5 +1,5 @@
 import {
-  arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, orderBy, query,
+  arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, orderBy, query,
   serverTimestamp, Timestamp, updateDoc, writeBatch
 } from 'firebase/firestore';
 
@@ -130,7 +130,12 @@ export async function changeMemberRole(app, auth, workspaceId, uid, role) {
   await updateDoc(doc(db, 'workspaces', workspaceId, 'members', uid), {role});
 }
 export async function removeMember(app, auth, workspaceId, uid) { const db = getFirestore(app); requireUser(auth); await deleteDoc(doc(db, 'workspaces', workspaceId, 'members', uid)); }
-export async function leaveWorkspace(app, auth, workspaceId) { const db = getFirestore(app), user = requireUser(auth); await deleteDoc(doc(db, 'workspaces', workspaceId, 'members', user.uid)); }
+export async function leaveWorkspace(app, auth, workspaceId) {
+  const db = getFirestore(app), user = requireUser(auth), batch = writeBatch(db);
+  batch.delete(doc(db, 'workspaces', workspaceId, 'members', user.uid));
+  batch.set(doc(db, 'users', user.uid), {workspaceIds:arrayRemove(workspaceId), updatedAt:serverTimestamp()}, {merge:true});
+  await batch.commit();
+}
 export async function transferOwnership(app, auth, {workspaceId, successorUid, formerOwnerRole = 'editor'}) {
   if (!['editor', 'viewer'].includes(formerOwnerRole)) throw Object.assign(new Error('Choose editor or viewer for the former owner.'), {code:'INVALID_ROLE'});
   const db = getFirestore(app), user = requireUser(auth), batch = writeBatch(db), workspace = doc(db, 'workspaces', workspaceId);

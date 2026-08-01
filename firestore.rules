@@ -112,6 +112,14 @@ service cloud.firestore {
         );
     }
 
+    function validSelfLeave(workspaceId, uid) {
+      let profileAfter = getAfter(/databases/$(database)/documents/users/$(uid)).data;
+      return uid == request.auth.uid
+        && resource.data.role != 'owner'
+        && profileAfter.workspaceIds is list
+        && !profileAfter.workspaceIds.hasAll([workspaceId]);
+    }
+
     match /users/{uid} {
       allow read, create, update: if signedIn() && request.auth.uid == uid;
       allow delete: if false;
@@ -148,7 +156,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
           && request.resource.data.role in ['editor', 'viewer']
         );
-        allow delete: if (uid == request.auth.uid && resource.data.role != 'owner')
+        allow delete: if validSelfLeave(workspaceId, uid)
           || (isOwner(workspaceId) && resource.data.role != 'owner');
       }
 

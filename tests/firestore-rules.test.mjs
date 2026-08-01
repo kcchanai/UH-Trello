@@ -45,6 +45,7 @@ before(async () => {
     await setDoc(doc(db, 'workspaces', 'transfer', 'members', 'successor'), {
       uid:'successor', role:'editor', emailLower:'successor@example.com', displayName:'Successor'
     });
+    await setDoc(doc(db, 'users', 'viewer-a'), {uid:'viewer-a', emailLower:'viewer@example.com', workspaceIds:['alpha']});
     await setDoc(doc(db, 'workspaces', 'alpha', 'invites', 'invite-accept'), {
       emailLower:'invitee@example.com', role:'editor', createdBy:'owner-a',
       createdAt:Timestamp.fromMillis(Date.now() - 60_000), acceptedAt:null, acceptedBy:null, revokedAt:null,
@@ -216,8 +217,11 @@ test('revoked invitation becomes unreadable and cannot be accepted or reused', a
   await assertFails(updateDoc(doc(owner, 'workspaces', 'alpha', 'invites', 'invite-revocable'), {revokedAt:null}));
 });
 
-test('non-owner members can leave, while owner deletion remains protected', async () => {
-  await assertSucceeds(deleteDoc(doc(dbFor('viewer-a'), 'workspaces', 'alpha', 'members', 'viewer-a')));
+test('non-owner self-leave atomically removes membership and profile discovery, while owner deletion remains protected', async () => {
+  const viewer = dbFor('viewer-a'), leave = writeBatch(viewer);
+  leave.delete(doc(viewer, 'workspaces', 'alpha', 'members', 'viewer-a'));
+  leave.set(doc(viewer, 'users', 'viewer-a'), {workspaceIds:[]}, {merge:true});
+  await assertSucceeds(leave.commit());
   await assertFails(deleteDoc(doc(dbFor('owner-a'), 'workspaces', 'alpha', 'members', 'owner-a')));
 });
 
