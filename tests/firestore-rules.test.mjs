@@ -136,6 +136,19 @@ test('editor can write board content but cannot manage members', async () => {
   }));
 });
 
+test('owner can write granular migration documents while a viewer cannot forge them', async () => {
+  const owner = dbFor('owner-a');
+  await assertSucceeds(setDoc(doc(owner, 'workspaces', 'alpha', 'boards', 'granular-board', 'lists', 'list-1'), {
+    id:'list-1', title:'Migrated list', rank:0, granularVersion:1
+  }));
+  await assertSucceeds(setDoc(doc(owner, 'workspaces', 'alpha', 'boards', 'granular-board', 'cards', 'card-1'), {
+    id:'card-1', listId:'list-1', title:'Migrated card', rank:0, granularVersion:1
+  }));
+  await assertFails(setDoc(doc(dbFor('viewer-a'), 'workspaces', 'alpha', 'boards', 'granular-board', 'cards', 'forged'), {
+    id:'forged', listId:'list-1', title:'Blocked', rank:1
+  }));
+});
+
 test('owner bootstrap and backup-first board upload are permitted as separate verified writes', async () => {
   const owner = dbFor('migration-owner', 'migration@example.com');
   const bootstrap = writeBatch(owner);

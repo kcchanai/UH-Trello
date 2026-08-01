@@ -40,9 +40,10 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
   const workspacesList = document.querySelector('#cloud-workspaces-list');
   const workspacesStatus = document.querySelector('#cloud-workspaces-status');
   const returnLocal = document.querySelector('#return-to-local-workspace');
+  const migrateCloud = document.querySelector('#migrate-cloud-workspace');
   const exportCloud = document.querySelector('#export-cloud-workspace');
   const announcer = document.querySelector('#announcer');
-  let session = null, workspace = null, backupDownloaded = false, completed = false;
+  let session = null, workspace = null, backupDownloaded = false, completed = false, selectedCloudEntry = null;
 
   const announce = text => { status.textContent = text; announcer.textContent = ''; requestAnimationFrame(() => { announcer.textContent = text; }); };
   const prepare = () => {
@@ -113,7 +114,8 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
           try {
             const cloudWorkspace = await cloudAdapter.fetchWorkspace(entry.id);
             globalThis.FlowboardApp.openCloudPreview(cloudWorkspace, entry);
-            returnLocal.hidden = false; exportCloud.hidden = false;
+            selectedCloudEntry = entry; returnLocal.hidden = false; exportCloud.hidden = false;
+            migrateCloud.hidden = entry.ownerUid !== session.uid || entry.migration?.state === 'verified';
             workspacesStatus.textContent = `Viewing “${entry.name || 'Untitled cloud workspace'}” as a read-only preview. Local data is unchanged.`;
           } catch (error) {
             console.error('Flowboard could not open cloud workspace preview.', error);
@@ -134,6 +136,18 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
     globalThis.FlowboardApp.returnToLocal(); returnLocal.hidden = true; exportCloud.hidden = true;
     workspacesStatus.textContent = 'Returned to the browser-local workspace.';
   });
+  migrateCloud.addEventListener('click', async () => {
+    if (!selectedCloudEntry || selectedCloudEntry.ownerUid !== session?.uid) return;
+    migrateCloud.disabled = true; workspacesStatus.textContent = 'Migrating and verifying granular cloud documents. Legacy snapshots are preserved.';
+    try {
+      const result = await cloudAdapter.migrateWorkspaceToGranular(selectedCloudEntry.id);
+      const cloudWorkspace = await cloudAdapter.fetchWorkspace(selectedCloudEntry.id);
+      globalThis.FlowboardApp.openCloudPreview(cloudWorkspace, selectedCloudEntry);
+      migrateCloud.hidden = true;
+      workspacesStatus.textContent = result.alreadyMigrated ? 'This workspace was already verified in the granular cloud format.' : `Granular migration verified: ${result.boards} boards, ${result.lists} lists, and ${result.cards} cards. Legacy snapshots remain available.`;
+    } catch (error) { console.error('Flowboard granular migration failed.', error); workspacesStatus.textContent = 'Granular migration could not be verified. Legacy cloud snapshots remain available.'; }
+    finally { migrateCloud.disabled = false; }
+  });
   exportCloud.addEventListener('click', () => {
     try { globalThis.FlowboardApp.exportCloudPreview(); workspacesStatus.textContent = 'Cloud preview JSON export downloaded.'; }
     catch (error) { workspacesStatus.textContent = 'Open a cloud preview before exporting it.'; }
@@ -141,7 +155,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
 
   window.addEventListener('flowboard:cloud-preview-change', () => {
     const preview = globalThis.FlowboardApp?.getMode().kind === 'cloud-preview';
-    returnLocal.hidden = !preview; exportCloud.hidden = !preview;
+    returnLocal.hidden = !preview; exportCloud.hidden = !preview; migrateCloud.hidden = true;
     if (!preview && workspacesDialog.open) { workspacesList.replaceChildren(); workspacesStatus.textContent = 'Workspace access ended. Your browser-local workspace is active.'; }
   });
 

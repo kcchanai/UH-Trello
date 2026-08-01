@@ -9,7 +9,7 @@
 
 export const REMOTE_METHODS = Object.freeze([
   'getSession', 'onAuthStateChange', 'signInWithGoogle', 'signOut',
-  'listWorkspaces', 'fetchWorkspace', 'subscribeWorkspace',
+  'listWorkspaces', 'fetchWorkspace', 'migrateWorkspaceToGranular', 'subscribeWorkspace',
   'createWorkspace', 'applyMutation', 'inviteMember', 'createInvite', 'listMembers', 'listInvites', 'revokeInvite', 'acceptInvite',
   'changeMemberRole', 'removeMember', 'leaveWorkspace', 'transferOwnership', 'uploadLocalWorkspace',
   'exportRemoteWorkspace'

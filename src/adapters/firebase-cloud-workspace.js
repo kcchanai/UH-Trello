@@ -1,3 +1,4 @@
+import {granularizeBoard, rehydrateGranularWorkspace} from '../granular-workspace.js';
 import {
   arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, orderBy, query,
   serverTimestamp, Timestamp, updateDoc, writeBatch
@@ -29,7 +30,42 @@ export async function fetchCloudWorkspace(app, auth, workspaceId) {
   const metadata = await getDoc(doc(db, 'workspaces', workspaceId));
   if (!metadata.exists()) throw Object.assign(new Error('Cloud workspace was not found.'), {code:'WORKSPACE_NOT_FOUND'});
   const boards = await getDocs(query(collection(db, 'workspaces', workspaceId, 'boards'), orderBy('rank')));
-  return {...metadata.data(), id:workspaceId, boards:boards.docs.map(item => item.data().snapshot)};
+  const workspace = {...metadata.data(), id:workspaceId};
+  if (workspace.migration?.state !== 'verified') return {...workspace, boards:boards.docs.map(item => item.data().snapshot)};
+  const records = await Promise.all(boards.docs.map(async item => ({
+    board:{id:item.id, ...item.data()},
+    lists:(await getDocs(query(collection(item.ref, 'lists'), orderBy('rank')))).docs.map(doc => ({id:doc.id, ...doc.data()})),
+    cards:(await getDocs(query(collection(item.ref, 'cards'), orderBy('rank')))).docs.map(doc => ({id:doc.id, ...doc.data()}))
+  })));
+  return rehydrateGranularWorkspace(workspace, records);
+}
+
+export async function migrateWorkspaceToGranular(app, auth, workspaceId) {
+  const db = getFirestore(app), user = requireUser(auth), workspaceRef = doc(db, 'workspaces', workspaceId);
+  const workspaceSnapshot = await getDoc(workspaceRef);
+  if (!workspaceSnapshot.exists() || workspaceSnapshot.data().ownerUid !== user.uid) throw Object.assign(new Error('Only the workspace owner can migrate this cloud workspace.'), {code:'OWNER_REQUIRED'});
+  if (workspaceSnapshot.data().migration?.state === 'verified') return {alreadyMigrated:true, ...workspaceSnapshot.data().migration.counts};
+  const boards = await getDocs(query(collection(db, 'workspaces', workspaceId, 'boards'), orderBy('rank')));
+  const granular = boards.docs.map((item, rank) => granularizeBoard(item.data().snapshot, rank));
+  const counts = {boards:granular.length, lists:granular.reduce((n, item) => n + item.lists.length, 0), cards:granular.reduce((n, item) => n + item.cards.length, 0)};
+  if (counts.boards > 100 || counts.lists > 1000 || counts.cards > 10000) throw Object.assign(new Error('This workspace is too large for the safe granular migration.'), {code:'WORKSPACE_TOO_LARGE'});
+  await updateDoc(workspaceRef, {status:'migrating', migration:{version:1, state:'migrating', counts, startedAt:serverTimestamp()}, updatedAt:serverTimestamp()});
+  const writes = [];
+  granular.forEach(item => {
+    const boardRef = doc(db, 'workspaces', workspaceId, 'boards', item.board.id);
+    writes.push({ref:boardRef, data:{...item.board, granularVersion:1, updatedAt:serverTimestamp()}, options:{merge:true}});
+    item.lists.forEach(list => writes.push({ref:doc(boardRef, 'lists', list.id), data:{...list, granularVersion:1, updatedAt:serverTimestamp()}, options:{merge:true}}));
+    item.cards.forEach(card => writes.push({ref:doc(boardRef, 'cards', card.id), data:{...card, granularVersion:1, updatedAt:serverTimestamp()}, options:{merge:true}}));
+  });
+  for (let index = 0; index < writes.length; index += 400) { const batch = writeBatch(db); writes.slice(index, index + 400).forEach(write => batch.set(write.ref, write.data, write.options)); await batch.commit(); }
+  const verified = await Promise.all(boards.docs.map(async item => {
+    const [lists, cards] = await Promise.all([getDocs(collection(item.ref, 'lists')), getDocs(collection(item.ref, 'cards'))]);
+    const expected = granular.find(entry => entry.board.id === item.id);
+    return lists.size === expected.lists.length && cards.size === expected.cards.length;
+  }));
+  if (!verified.every(Boolean)) throw Object.assign(new Error('Granular cloud migration could not be verified. The legacy snapshots were preserved.'), {code:'MIGRATION_VERIFICATION_FAILED'});
+  await updateDoc(workspaceRef, {status:'ready', migration:{version:1, state:'verified', counts, verifiedAt:serverTimestamp()}, updatedAt:serverTimestamp()});
+  return {alreadyMigrated:false, ...counts};
 }
 
 export async function uploadLocalWorkspace(app, auth, {name, workspace}) {

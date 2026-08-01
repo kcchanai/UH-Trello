@@ -34,6 +34,7 @@ export function createFirebaseWorkspaceAdapter(config) {
     async signOut() { await firebaseSignOut(auth); },
     async listWorkspaces() { return (await cloud()).listCloudWorkspaces(app, auth); },
     async fetchWorkspace(workspaceId) { return (await cloud()).fetchCloudWorkspace(app, auth, workspaceId); },
+    async migrateWorkspaceToGranular(workspaceId) { return (await cloud()).migrateWorkspaceToGranular(app, auth, workspaceId); },
     async listMembers(workspaceId) { return (await cloud()).listMembers(app, auth, workspaceId); },
     async listInvites(workspaceId) { return (await cloud()).listInvites(app, auth, workspaceId); },
     async createInvite(options) { return (await cloud()).createInvite(app, auth, options); },
