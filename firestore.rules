@@ -145,7 +145,7 @@ service cloud.firestore {
         && data.clientMutationId == activityId
         && data.clientMutationId.size() >= 16
         && data.clientMutationId.size() <= 128
-        && data.createdAt is timestamp;
+        && data.createdAt == request.time;
     }
 
     match /users/{uid} {

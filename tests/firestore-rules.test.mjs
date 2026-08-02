@@ -269,8 +269,8 @@ test('ownership transfer rejects partial changes and only permits a complete ato
 });
 
 test('activity is member-readable, immutable, actor-bound, and shape-bound', async () => {
-  const valid = {actorUid:'editor-a', action:'card-created', boardId:'board-1', clientMutationId:'activity-mutation-id-0001', createdAt:serverTimestamp()};
-  await assertSucceeds(setDoc(doc(dbFor('editor-a'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0001'), valid));
+  const valid = {actorUid:'invitee-uid', action:'card-created', boardId:'board-1', clientMutationId:'activity-mutation-id-0001', createdAt:serverTimestamp()};
+  await assertSucceeds(setDoc(doc(dbFor('invitee-uid'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0001'), valid));
   await assertSucceeds(getDoc(doc(dbFor('owner-a'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0001')));
   await assertFails(setDoc(doc(dbFor('viewer-a'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0002'), {...valid, actorUid:'viewer-a', clientMutationId:'activity-mutation-id-0002'}));
   await assertFails(setDoc(doc(dbFor('editor-a'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0003'), {...valid, actorUid:'owner-a', clientMutationId:'activity-mutation-id-0003'}));
