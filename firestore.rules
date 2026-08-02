@@ -133,12 +133,39 @@ service cloud.firestore {
         && request.resource.data.clientMutationId.size() >= 16
         && request.resource.data.clientMutationId.size() <= 128;
     }
+    function validAssigneeAt(workspaceId, assigneeUids, position) {
+      return assigneeUids.size() <= position || (
+        assigneeUids[position] is string
+        && assigneeUids[position].size() >= 1
+        && assigneeUids[position].size() <= 128
+        && exists(memberDoc(workspaceId, assigneeUids[position]))
+      );
+    }
+    function validCardAssignments(workspaceId, data) {
+      let assigneeUids = data.assigneeUids;
+      return data.keys().hasAll(['assigneeUids'])
+        && assigneeUids is list
+        && assigneeUids.size() <= 8
+        && assigneeUids.toSet().size() == assigneeUids.size()
+        && validAssigneeAt(workspaceId, assigneeUids, 0)
+        && validAssigneeAt(workspaceId, assigneeUids, 1)
+        && validAssigneeAt(workspaceId, assigneeUids, 2)
+        && validAssigneeAt(workspaceId, assigneeUids, 3)
+        && validAssigneeAt(workspaceId, assigneeUids, 4)
+        && validAssigneeAt(workspaceId, assigneeUids, 5)
+        && validAssigneeAt(workspaceId, assigneeUids, 6)
+        && validAssigneeAt(workspaceId, assigneeUids, 7);
+    }
+    function validCardAssignmentUpdate(workspaceId) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['assigneeUids'])
+        || validCardAssignments(workspaceId, request.resource.data);
+    }
 
     function validActivity(data, activityId) {
       return data.keys().hasAll(['actorUid', 'action', 'boardId', 'clientMutationId', 'createdAt'])
         && data.keys().hasOnly(['actorUid', 'action', 'boardId', 'clientMutationId', 'createdAt'])
         && data.actorUid == request.auth.uid
-        && data.action in ['board-created', 'board-updated', 'card-created', 'card-updated', 'card-moved', 'list-created', 'list-updated', 'workspace-updated']
+        && data.action in ['board-created', 'board-updated', 'card-created', 'card-updated', 'card-moved', 'card-assigned', 'list-created', 'list-updated', 'workspace-updated']
         && data.boardId is string
         && data.boardId.size() <= 128
         && data.clientMutationId is string
@@ -213,8 +240,8 @@ service cloud.firestore {
         }
         match /cards/{cardId} {
           allow read: if isMember(workspaceId);
-          allow create: if canEdit(workspaceId) && validInitialRevision();
-          allow update: if canEdit(workspaceId) && validRevision();
+          allow create: if canEdit(workspaceId) && validInitialRevision() && validCardAssignments(workspaceId, request.resource.data);
+          allow update: if canEdit(workspaceId) && validRevision() && validCardAssignmentUpdate(workspaceId);
           allow delete: if canEdit(workspaceId);
         }
       }

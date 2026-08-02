@@ -1,6 +1,6 @@
 const actions = Object.freeze({
   'board-created':'created a board', 'board-updated':'updated a board',
-  'card-created':'created a card', 'card-updated':'updated a card', 'card-moved':'moved a card',
+  'card-created':'created a card', 'card-updated':'updated a card', 'card-moved':'moved a card', 'card-assigned':'updated card assignments',
   'list-created':'created a list', 'list-updated':'updated a list', 'workspace-updated':'updated the workspace'
 });
 

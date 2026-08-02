@@ -38,15 +38,16 @@ globalThis.FlowboardRuntime = Object.freeze({
 await import('../app.js');
 
 if (cloudConfigured && !cloudInitializationError) {
-  const [{initializeAuthUI}, {initializeCloudWorkspaceUI}, {initializeInviteUI}, {initializeMembersUI}, {initializeCloudSyncController}, {initializeActivityUI}] = await Promise.all([
-    import('./auth-ui.js'), import('./cloud-workspace-ui.js'), import('./invite-ui.js'), import('./members-ui.js'), import('./cloud-sync-controller.js'), import('./activity-ui.js')
+  const [{initializeAuthUI}, {initializeCloudWorkspaceUI}, {initializeInviteUI}, {initializeMembersUI}, {initializeCloudSyncController}, {initializeActivityUI}, {initializeAssignmentUI}] = await Promise.all([
+    import('./auth-ui.js'), import('./cloud-workspace-ui.js'), import('./invite-ui.js'), import('./members-ui.js'), import('./cloud-sync-controller.js'), import('./activity-ui.js'), import('./assignment-ui.js')
   ]);
   const cloudUI = initializeCloudWorkspaceUI({localAdapter, cloudAdapter});
   const inviteUI = initializeInviteUI(cloudAdapter);
   const membersUI = initializeMembersUI(cloudAdapter);
   const syncController = initializeCloudSyncController(cloudAdapter);
   const activityUI = initializeActivityUI(cloudAdapter);
-  initializeAuthUI(cloudAdapter, {onSessionChange:session => { syncController.setSession(session); cloudUI.setSession(session); inviteUI.setSession(session); membersUI.setSession(session); activityUI.setSession(session); }});
+  const assignmentUI = initializeAssignmentUI(cloudAdapter);
+  initializeAuthUI(cloudAdapter, {onSessionChange:session => { syncController.setSession(session); cloudUI.setSession(session); inviteUI.setSession(session); membersUI.setSession(session); activityUI.setSession(session); assignmentUI.setSession(session); }});
 } else if (cloudConfigured) {
   const accountButton = document.querySelector('#account-button');
   accountButton.disabled = true;

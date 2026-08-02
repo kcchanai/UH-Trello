@@ -10,10 +10,11 @@ test('legacy data migrates to schema 4 with usable collaboration metadata', () =
 });
 
 test('normalization safely upgrades old workspace data and rejects invalid envelope', () => {
-  const normalized = State.normalizeWorkspace({schemaVersion: 1, boards: [{title: 'Old', lists: [{title: 'Next', cards: [{title: 'Task', labels: ['purple']}]}]}]});
+  const normalized = State.normalizeWorkspace({schemaVersion: 1, boards: [{title: 'Old', lists: [{title: 'Next', cards: [{title: 'Task', labels: ['purple'], assigneeUids:['member-1','member-1','bad uid']}]}]}]});
   assert.equal(normalized.schemaVersion, 4);
   assert.equal(normalized.boards[0].lists[0].cards[0].labels[0].color, 'purple');
   assert.equal(normalized.boards[0].collaboration.access, 'private');
+  assert.deepEqual(normalized.boards[0].lists[0].cards[0].assigneeUids, ['member-1']);
   assert.equal(State.validWorkspace({schemaVersion: 99, boards: []}), false);
 });
 

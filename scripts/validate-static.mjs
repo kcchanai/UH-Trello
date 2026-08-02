@@ -1,9 +1,9 @@
 import {readFile} from 'node:fs/promises';
 
-const [html, app, core, main, localAdapter, firebaseAdapter, cloudAdapter, authUI, cloudUI, inviteUI, membersUI, cloudSync, activityUI] = await Promise.all([
+const [html, app, core, main, localAdapter, firebaseAdapter, cloudAdapter, authUI, cloudUI, inviteUI, membersUI, cloudSync, activityUI, assignmentUI] = await Promise.all([
   'index.html', 'app.js', 'state-core.js', 'src/main.js', 'src/adapters/local-workspace-adapter.js',
   'src/adapters/firebase-workspace-adapter.js', 'src/adapters/firebase-cloud-workspace.js',
-  'src/auth-ui.js', 'src/cloud-workspace-ui.js', 'src/invite-ui.js', 'src/members-ui.js', 'src/cloud-sync-controller.js', 'src/activity-ui.js'
+  'src/auth-ui.js', 'src/cloud-workspace-ui.js', 'src/invite-ui.js', 'src/members-ui.js', 'src/cloud-sync-controller.js', 'src/activity-ui.js', 'src/assignment-ui.js'
 ].map(file => readFile(file, 'utf8')));
 
 const required = [
@@ -33,6 +33,7 @@ if (!app.includes('openCloudPreview') || !app.includes("activeWorkspace.kind !==
 if (!html.includes('workspace-members-dialog') || !inviteUI.includes('acceptInvite') || !membersUI.includes('transferOwnership')) throw new Error('Secure membership administration UI is incomplete.');
 if (!firebaseAdapter.includes('subscribeWorkspace') || !cloudAdapter.includes('onSnapshot') || !cloudSync.includes("window.addEventListener('offline'") || !cloudSync.includes('handleCloudAccessRemoved')) throw new Error('Realtime cloud lifecycle boundary is incomplete.');
 if (!html.includes('cloud-activity-dialog') || !activityUI.includes('listActivity') || !activityUI.includes('pageSize:25') || !activityUI.includes('text.textContent')) throw new Error('Authenticated activity feed is incomplete or unbounded.');
+if (!html.includes('cloud-assignees-field') || !app.includes('assigneeUids') || !assignmentUI.includes('listMembers') || !assignmentUI.includes('checked.length>8') || !assignmentUI.includes('text.textContent')) throw new Error('Member-backed cloud assignment controls are incomplete or unsafe.');
 const cloudSources = [firebaseAdapter, cloudAdapter, cloudSync, main].join('\n');
 if (/enableIndexedDbPersistence|persistentLocalCache|persistentMultipleTabManager|CACHE_SIZE_UNLIMITED/.test(cloudSources)) throw new Error('Persistent Firestore caching is approval-gated and must remain disabled.');
 console.log(`Static validation passed: ${required.length} semantic/runtime guards plus adapter-boundary checks.`);

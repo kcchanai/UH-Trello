@@ -142,21 +142,29 @@ test('owner can write granular migration documents while a viewer cannot forge t
     id:'list-1', title:'Migrated list', rank:0, granularVersion:1, revision:0, clientMutationId:'mutation-identifier-0001'
   }));
   await assertSucceeds(setDoc(doc(owner, 'workspaces', 'alpha', 'boards', 'granular-board', 'cards', 'card-1'), {
-    id:'card-1', listId:'list-1', title:'Migrated card', rank:0, granularVersion:1, revision:0, clientMutationId:'mutation-identifier-0002'
+    id:'card-1', listId:'list-1', title:'Migrated card', rank:0, assigneeUids:[], granularVersion:1, revision:0, clientMutationId:'mutation-identifier-0002'
   }));
   await assertFails(setDoc(doc(dbFor('viewer-a'), 'workspaces', 'alpha', 'boards', 'granular-board', 'cards', 'forged'), {
-    id:'forged', listId:'list-1', title:'Blocked', rank:1, revision:0, clientMutationId:'mutation-identifier-0003'
+    id:'forged', listId:'list-1', title:'Blocked', rank:1, assigneeUids:[], revision:0, clientMutationId:'mutation-identifier-0003'
   }));
 });
 
 test('cloud content updates require an incremented revision and client mutation identifier', async () => {
   const editor = dbFor('editor-a'), card = doc(editor, 'workspaces', 'alpha', 'boards', 'revision-board', 'cards', 'revision-card');
-  await assertSucceeds(setDoc(card, {id:'revision-card', listId:'list-a', title:'Initial', rank:0, revision:0, clientMutationId:'mutation-identifier-0004'}));
+  await assertSucceeds(setDoc(card, {id:'revision-card', listId:'list-a', title:'Initial', rank:0, assigneeUids:[], revision:0, clientMutationId:'mutation-identifier-0004'}));
   await assertFails(updateDoc(card, {title:'No revision'}));
   await assertFails(updateDoc(card, {title:'Wrong revision', revision:2, clientMutationId:'mutation-identifier-0001'}));
   await assertFails(updateDoc(card, {title:'Short mutation id', revision:1, clientMutationId:'short'}));
   await assertSucceeds(updateDoc(card, {title:'Edited', revision:1, clientMutationId:'mutation-identifier-0001'}));
   await assertFails(updateDoc(doc(dbFor('viewer-a'), 'workspaces', 'alpha', 'boards', 'revision-board', 'cards', 'revision-card'), {title:'Viewer edit', revision:2, clientMutationId:'mutation-identifier-0002'}));
+});
+
+test('cloud assignments are bounded, unique, member-backed, and editor-controlled', async () => {
+  const owner=dbFor('owner-a'), path=['workspaces','alpha','boards','assignment-board','cards'];
+  await assertSucceeds(setDoc(doc(owner,...path,'assignment-card'), {id:'assignment-card', listId:'list-a', title:'Assigned', rank:0, assigneeUids:['editor-a','viewer-a'], revision:0, clientMutationId:'assignment-mutation-0001'}));
+  await assertFails(setDoc(doc(owner,...path,'nonmember-card'), {id:'nonmember-card', listId:'list-a', title:'Forged', rank:1, assigneeUids:['not-a-member'], revision:0, clientMutationId:'assignment-mutation-0002'}));
+  await assertFails(setDoc(doc(owner,...path,'duplicate-card'), {id:'duplicate-card', listId:'list-a', title:'Duplicate', rank:2, assigneeUids:['editor-a','editor-a'], revision:0, clientMutationId:'assignment-mutation-0003'}));
+  await assertFails(updateDoc(doc(dbFor('viewer-a'),...path,'assignment-card'), {assigneeUids:[], revision:1, clientMutationId:'assignment-mutation-0004'}));
 });
 
 test('owner bootstrap and backup-first board upload are permitted as separate verified writes', async () => {
@@ -248,6 +256,13 @@ test('non-owner self-leave atomically removes membership and profile discovery, 
   await assertFails(deleteDoc(doc(dbFor('owner-a'), 'workspaces', 'alpha', 'members', 'owner-a')));
 });
 
+test('former-member assignments permit unrelated edits but must be cleared when assignments change', async () => {
+  const owner=dbFor('owner-a'), card=doc(owner,'workspaces','alpha','boards','assignment-board','cards','assignment-card');
+  await assertSucceeds(updateDoc(card,{title:'Unrelated edit', revision:1, clientMutationId:'assignment-mutation-0005'}));
+  await assertFails(updateDoc(card,{assigneeUids:['viewer-a'], revision:2, clientMutationId:'assignment-mutation-0006'}));
+  await assertSucceeds(updateDoc(card,{assigneeUids:['editor-a'], revision:2, clientMutationId:'assignment-mutation-0007'}));
+});
+
 test('ownership transfer rejects partial changes and only permits a complete atomic transfer', async () => {
   const owner = dbFor('owner-transfer', 'owner-transfer@example.com');
   await assertFails(updateDoc(doc(owner, 'workspaces', 'transfer'), {ownerUid:'successor'}));
@@ -273,7 +288,7 @@ test('activity is member-readable, immutable, actor-bound, and shape-bound', asy
   await assertSucceeds(setDoc(doc(dbFor('invitee-uid'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0001'), valid));
   await assertSucceeds(getDoc(doc(dbFor('owner-a'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0001')));
   await assertFails(setDoc(doc(dbFor('viewer-a'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0002'), {...valid, actorUid:'viewer-a', clientMutationId:'activity-mutation-id-0002'}));
-  await assertFails(setDoc(doc(dbFor('editor-a'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0003'), {...valid, actorUid:'owner-a', clientMutationId:'activity-mutation-id-0003'}));
-  await assertFails(setDoc(doc(dbFor('editor-a'), 'workspaces', 'alpha', 'activity', 'wrong-id'), {...valid, clientMutationId:'activity-mutation-id-0004'}));
+  await assertFails(setDoc(doc(dbFor('invitee-uid'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0003'), {...valid, actorUid:'owner-a', clientMutationId:'activity-mutation-id-0003'}));
+  await assertFails(setDoc(doc(dbFor('invitee-uid'), 'workspaces', 'alpha', 'activity', 'wrong-id'), {...valid, clientMutationId:'activity-mutation-id-0004'}));
   await assertFails(updateDoc(doc(dbFor('editor-a'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0001'), {action:'card-moved'}));
 });

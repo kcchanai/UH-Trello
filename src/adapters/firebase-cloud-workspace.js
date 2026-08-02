@@ -134,7 +134,7 @@ const granularDocuments = workspace => {
 
 export async function applyCloudWorkspaceMutation(app, auth, {workspaceId, before, next, clientMutationId, activityAction = null}) {
   const db = getFirestore(app), user = requireUser(auth);
-  const allowedActivityActions = ['board-created','board-updated','card-created','card-updated','card-moved','list-created','list-updated','workspace-updated'];
+  const allowedActivityActions = ['board-created','board-updated','card-created','card-updated','card-moved','card-assigned','list-created','list-updated','workspace-updated'];
   if (!/^[A-Za-z0-9_-]{16,128}$/.test(clientMutationId || '') || !before || !next) throw Object.assign(new Error('The cloud edit request is invalid.'), {code:'INVALID_MUTATION'});
   const previous = granularDocuments(before), desired = granularDocuments(next);
   const paths = [...new Set([...previous.keys(), ...desired.keys()])].filter(path => comparable(previous.get(path)?.data) !== comparable(desired.get(path)?.data));
@@ -143,7 +143,7 @@ export async function applyCloudWorkspaceMutation(app, auth, {workspaceId, befor
   const activityPath = paths.find(path => path.includes('/cards/')) || paths.find(path => path.includes('/lists/')) || paths[0];
   const activityPrior = previous.get(activityPath), activityTarget = desired.get(activityPath);
   if (!activityAction) {
-    if (activityPath.includes('/cards/')) activityAction = !activityPrior && activityTarget ? 'card-created' : activityPrior && activityTarget && activityPrior.data.listId !== activityTarget.data.listId ? 'card-moved' : 'card-updated';
+    if (activityPath.includes('/cards/')) activityAction = !activityPrior && activityTarget ? 'card-created' : activityPrior && activityTarget && activityPrior.data.listId !== activityTarget.data.listId ? 'card-moved' : activityPrior && activityTarget && comparable(activityPrior.data.assigneeUids || []) !== comparable(activityTarget.data.assigneeUids || []) ? 'card-assigned' : 'card-updated';
     else if (activityPath.includes('/lists/')) activityAction = !activityPrior && activityTarget ? 'list-created' : 'list-updated';
     else if (activityPath.startsWith('boards/')) activityAction = !activityPrior && activityTarget ? 'board-created' : 'board-updated';
     else activityAction = 'workspace-updated';
