@@ -220,6 +220,38 @@ test('authenticated comments are actor-bound, activity-coupled, revisioned, and 
   await assertFails(afterDelete.commit());
 });
 
+test('cloud parents cannot be hard deleted and orphaned comments fail closed', async () => {
+  for (const kind of ['workspace','board','list','card']) {
+    const workspaceId=`lifecycle-${kind}`, uid=`owner-${kind}`, boardId='lifecycle-board', listId='lifecycle-list', cardId='lifecycle-card', commentId='lifecycle-comment-0001';
+    await env.withSecurityRulesDisabled(async context => {
+      const db=context.firestore(), at=Timestamp.now();
+      await setDoc(doc(db,'workspaces',workspaceId),{name:workspaceId,ownerUid:uid,schemaVersion:1,status:'ready'});
+      await setDoc(doc(db,'workspaces',workspaceId,'members',uid),{uid,role:'owner',emailLower:`${uid}@example.com`,displayName:uid});
+      await setDoc(doc(db,'workspaces',workspaceId,'boards',boardId),{title:'Lifecycle',rank:0,revision:0,clientMutationId:'lifecycle-board-0001',updatedAt:at});
+      await setDoc(doc(db,'workspaces',workspaceId,'boards',boardId,'lists',listId),{title:'Lifecycle',rank:0,revision:0,clientMutationId:'lifecycle-list-0001',updatedAt:at});
+      await setDoc(doc(db,'workspaces',workspaceId,'boards',boardId,'cards',cardId),{title:'Lifecycle',listId,rank:0,revision:0,clientMutationId:'lifecycle-card-0001',updatedAt:at,assigneeUids:[]});
+      await setDoc(doc(db,'workspaces',workspaceId,'boards',boardId,'cards',cardId,'comments',commentId),{authorUid:uid,body:'Retained comment',createdAt:at,updatedAt:at,deletedAt:null,revision:0,clientMutationId:commentId});
+    });
+    const owner=dbFor(uid), comment=doc(owner,'workspaces',workspaceId,'boards',boardId,'cards',cardId,'comments',commentId);
+    await assertSucceeds(getDoc(comment));
+    const parent = kind==='workspace' ? doc(owner,'workspaces',workspaceId)
+      : kind==='board' ? doc(owner,'workspaces',workspaceId,'boards',boardId)
+      : kind==='list' ? doc(owner,'workspaces',workspaceId,'boards',boardId,'lists',listId)
+      : doc(owner,'workspaces',workspaceId,'boards',boardId,'cards',cardId);
+    await assertFails(deleteDoc(parent));
+    await env.withSecurityRulesDisabled(context => deleteDoc(kind==='workspace' ? doc(context.firestore(),'workspaces',workspaceId)
+      : kind==='board' ? doc(context.firestore(),'workspaces',workspaceId,'boards',boardId)
+      : kind==='list' ? doc(context.firestore(),'workspaces',workspaceId,'boards',boardId,'lists',listId)
+      : doc(context.firestore(),'workspaces',workspaceId,'boards',boardId,'cards',cardId)));
+    await assertFails(getDoc(comment));
+    await assertFails(getDocs(query(collection(owner,'workspaces',workspaceId,'boards',boardId,'cards',cardId,'comments'),limit(25))));
+    const mutationId=`orphan-${kind}-mutation-0001`, update=writeBatch(owner);
+    update.update(comment,{body:'Orphan mutation',updatedAt:serverTimestamp(),revision:1,clientMutationId:mutationId});
+    update.set(doc(owner,'workspaces',workspaceId,'activity',mutationId),{actorUid:uid,action:'comment-updated',boardId,clientMutationId:mutationId,createdAt:serverTimestamp()});
+    await assertFails(update.commit());
+  }
+});
+
 test('owner bootstrap and backup-first board upload are permitted as separate verified writes', async () => {
   const owner = dbFor('migration-owner', 'migration@example.com');
   const bootstrap = writeBatch(owner);
