@@ -52,6 +52,55 @@ export async function listWorkspaceActivity(app, auth, workspaceId, {cursor = nu
   return {entries:snapshot.docs.map(item => ({id:item.id, ...item.data()})), cursor:snapshot.docs.at(-1) || null, hasMore:snapshot.size === safeSize};
 }
 
+export function subscribeCardComments(app, auth, {workspaceId, boardId, cardId, pageSize = 25, onComments, onError}) {
+  const db = getFirestore(app); requireUser(auth);
+  const safeSize = Math.min(Math.max(Number.isInteger(pageSize) ? pageSize : 25, 1), 25);
+  const reference = query(collection(db, 'workspaces', workspaceId, 'boards', boardId, 'cards', cardId, 'comments'), orderBy('createdAt', 'desc'), limit(safeSize));
+  return onSnapshot(reference, snapshot => onComments?.({entries:snapshot.docs.map(item => ({id:item.id, ...item.data()})), cursor:snapshot.docs.at(-1) || null, hasMore:snapshot.size === safeSize}), onError);
+}
+
+export async function listOlderCardComments(app, auth, {workspaceId, boardId, cardId, cursor, pageSize = 25}) {
+  const db = getFirestore(app); requireUser(auth);
+  const safeSize = Math.min(Math.max(Number.isInteger(pageSize) ? pageSize : 25, 1), 25);
+  const constraints = [orderBy('createdAt', 'desc')];
+  if (cursor) constraints.push(startAfter(cursor));
+  constraints.push(limit(safeSize));
+  const snapshot = await getDocs(query(collection(db, 'workspaces', workspaceId, 'boards', boardId, 'cards', cardId, 'comments'), ...constraints));
+  return {entries:snapshot.docs.map(item => ({id:item.id, ...item.data()})), cursor:snapshot.docs.at(-1) || null, hasMore:snapshot.size === safeSize};
+}
+
+const commentRefs = (db, workspaceId, boardId, cardId, commentId, mutationId) => ({
+  comment:doc(db, 'workspaces', workspaceId, 'boards', boardId, 'cards', cardId, 'comments', commentId),
+  activity:doc(db, 'workspaces', workspaceId, 'activity', mutationId)
+});
+const commentActivity = (user, action, boardId, mutationId) => ({actorUid:user.uid, action, boardId, clientMutationId:mutationId, createdAt:serverTimestamp()});
+
+export async function createCardComment(app, auth, {workspaceId, boardId, cardId, body}) {
+  const db = getFirestore(app), user = requireUser(auth), commentId = randomId(), cleanBody = String(body || '').trim();
+  if (!cleanBody || cleanBody.length > 2000) throw Object.assign(new Error('Enter a comment up to 2,000 characters.'), {code:'INVALID_COMMENT'});
+  const refs = commentRefs(db, workspaceId, boardId, cardId, commentId, commentId), batch = writeBatch(db);
+  batch.set(refs.comment, {authorUid:user.uid, body:cleanBody, createdAt:serverTimestamp(), updatedAt:serverTimestamp(), deletedAt:null, revision:0, clientMutationId:commentId});
+  batch.set(refs.activity, commentActivity(user, 'comment-created', boardId, commentId));
+  await batch.commit(); return commentId;
+}
+
+async function changeCardComment(app, auth, {workspaceId, boardId, cardId, commentId, revision, body, remove = false}) {
+  const db = getFirestore(app), user = requireUser(auth), mutationId = randomId(), cleanBody = String(body || '').trim();
+  if (!remove && (!cleanBody || cleanBody.length > 2000)) throw Object.assign(new Error('Enter a comment up to 2,000 characters.'), {code:'INVALID_COMMENT'});
+  if (!Number.isInteger(revision) || revision < 0) throw Object.assign(new Error('The comment revision is invalid.'), {code:'INVALID_COMMENT'});
+  const refs = commentRefs(db, workspaceId, boardId, cardId, commentId, mutationId);
+  await runTransaction(db, async transaction => {
+    const current = await transaction.get(refs.comment);
+    if (!current.exists() || current.data().deletedAt) throw Object.assign(new Error('This comment is no longer editable.'), {code:'COMMENT_UNAVAILABLE'});
+    if ((current.data().revision ?? 0) !== revision) throw Object.assign(new Error('This comment changed elsewhere. Reopen the card before retrying.'), {code:'REVISION_CONFLICT'});
+    transaction.update(refs.comment, {body:remove ? '' : cleanBody, deletedAt:remove ? serverTimestamp() : null, updatedAt:serverTimestamp(), revision:revision + 1, clientMutationId:mutationId});
+    transaction.set(refs.activity, commentActivity(user, remove ? 'comment-deleted' : 'comment-updated', boardId, mutationId));
+  });
+}
+
+export const updateCardComment = (app, auth, options) => changeCardComment(app, auth, options);
+export const removeCardComment = (app, auth, options) => changeCardComment(app, auth, {...options, remove:true});
+
 export function subscribeCloudWorkspace(app, auth, {workspaceId, boardId, onBoard, onMembership, onStatus, onError}) {
   const db = getFirestore(app), user = requireUser(auth), snapshots = {board:null, lists:null, cards:null};
   let stopped = false, unsubscribers = [];

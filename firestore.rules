@@ -161,11 +161,69 @@ service cloud.firestore {
         || validCardAssignments(workspaceId, request.resource.data);
     }
 
+    function cardPath(workspaceId, boardId, cardId) {
+      return /databases/$(database)/documents/workspaces/$(workspaceId)/boards/$(boardId)/cards/$(cardId);
+    }
+    function activityPath(workspaceId, activityId) {
+      return /databases/$(database)/documents/workspaces/$(workspaceId)/activity/$(activityId);
+    }
+    function validCommentBody(body) { return body is string && body.size() > 0 && body.size() <= 2000; }
+    function validCommentActivity(workspaceId, boardId, mutationId, action) {
+      let event = getAfter(activityPath(workspaceId, mutationId)).data;
+      return event.actorUid == request.auth.uid
+        && event.action == action
+        && event.boardId == boardId
+        && event.clientMutationId == mutationId
+        && event.createdAt == request.time;
+    }
+    function validCommentCreate(workspaceId, boardId, commentId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['authorUid', 'body', 'createdAt', 'updatedAt', 'deletedAt', 'revision', 'clientMutationId'])
+        && data.keys().hasOnly(['authorUid', 'body', 'createdAt', 'updatedAt', 'deletedAt', 'revision', 'clientMutationId'])
+        && data.authorUid == request.auth.uid
+        && validCommentBody(data.body)
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && data.deletedAt == null
+        && data.revision == 0
+        && data.clientMutationId == commentId
+        && data.clientMutationId.size() >= 16
+        && data.clientMutationId.size() <= 128
+        && validCommentActivity(workspaceId, boardId, data.clientMutationId, 'comment-created');
+    }
+    function validCommentEdit(workspaceId, boardId) {
+      let data = request.resource.data;
+      return resource.data.authorUid == request.auth.uid
+        && resource.data.deletedAt == null
+        && data.diff(resource.data).affectedKeys().hasOnly(['body', 'updatedAt', 'revision', 'clientMutationId'])
+        && validCommentBody(data.body)
+        && data.updatedAt == request.time
+        && data.revision == resource.data.revision + 1
+        && data.clientMutationId is string
+        && data.clientMutationId.size() >= 16
+        && data.clientMutationId.size() <= 128
+        && validCommentActivity(workspaceId, boardId, data.clientMutationId, 'comment-updated');
+    }
+    function validCommentRemoval(workspaceId, boardId) {
+      let data = request.resource.data;
+      return (resource.data.authorUid == request.auth.uid || isOwner(workspaceId))
+        && resource.data.deletedAt == null
+        && data.diff(resource.data).affectedKeys().hasOnly(['body', 'deletedAt', 'updatedAt', 'revision', 'clientMutationId'])
+        && data.body == ''
+        && data.deletedAt == request.time
+        && data.updatedAt == request.time
+        && data.revision == resource.data.revision + 1
+        && data.clientMutationId is string
+        && data.clientMutationId.size() >= 16
+        && data.clientMutationId.size() <= 128
+        && validCommentActivity(workspaceId, boardId, data.clientMutationId, 'comment-deleted');
+    }
+
     function validActivity(data, activityId) {
       return data.keys().hasAll(['actorUid', 'action', 'boardId', 'clientMutationId', 'createdAt'])
         && data.keys().hasOnly(['actorUid', 'action', 'boardId', 'clientMutationId', 'createdAt'])
         && data.actorUid == request.auth.uid
-        && data.action in ['board-created', 'board-updated', 'card-created', 'card-updated', 'card-moved', 'card-assigned', 'list-created', 'list-updated', 'workspace-updated']
+        && data.action in ['board-created', 'board-updated', 'card-created', 'card-updated', 'card-moved', 'card-assigned', 'comment-created', 'comment-updated', 'comment-deleted', 'list-created', 'list-updated', 'workspace-updated']
         && data.boardId is string
         && data.boardId.size() <= 128
         && data.clientMutationId is string
@@ -243,6 +301,12 @@ service cloud.firestore {
           allow create: if canEdit(workspaceId) && validInitialRevision() && validCardAssignments(workspaceId, request.resource.data);
           allow update: if canEdit(workspaceId) && validRevision() && validCardAssignmentUpdate(workspaceId);
           allow delete: if canEdit(workspaceId);
+          match /comments/{commentId} {
+            allow read: if isMember(workspaceId) && exists(cardPath(workspaceId, boardId, cardId));
+            allow create: if canEdit(workspaceId) && exists(cardPath(workspaceId, boardId, cardId)) && validCommentCreate(workspaceId, boardId, commentId);
+            allow update: if canEdit(workspaceId) && (validCommentEdit(workspaceId, boardId) || validCommentRemoval(workspaceId, boardId));
+            allow delete: if false;
+          }
         }
       }
 

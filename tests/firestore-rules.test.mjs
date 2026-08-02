@@ -167,6 +167,52 @@ test('cloud assignments are bounded, unique, member-backed, and editor-controlle
   await assertFails(updateDoc(doc(dbFor('viewer-a'),...path,'assignment-card'), {assigneeUids:[], revision:1, clientMutationId:'assignment-mutation-0004'}));
 });
 
+test('authenticated comments are actor-bound, activity-coupled, revisioned, and viewer read-only', async () => {
+  const editor=dbFor('editor-a'), owner=dbFor('owner-a'), viewer=dbFor('viewer-a'), outsider=dbFor('owner-b');
+  const commentPath=['workspaces','alpha','boards','revision-board','cards','revision-card','comments'];
+  const activityPath=['workspaces','alpha','activity'];
+  const createId='comment-mutation-0001', comment=doc(editor,...commentPath,createId), create=writeBatch(editor);
+  create.set(comment,{authorUid:'editor-a',body:'First authenticated comment',createdAt:serverTimestamp(),updatedAt:serverTimestamp(),deletedAt:null,revision:0,clientMutationId:createId});
+  create.set(doc(editor,...activityPath,createId),{actorUid:'editor-a',action:'comment-created',boardId:'revision-board',clientMutationId:createId,createdAt:serverTimestamp()});
+  await assertSucceeds(create.commit());
+  await assertSucceeds(getDoc(doc(viewer,...commentPath,createId)));
+  await assertFails(getDoc(doc(outsider,...commentPath,createId)));
+
+  const missingActivity='comment-mutation-0002';
+  await assertFails(setDoc(doc(editor,...commentPath,missingActivity),{authorUid:'editor-a',body:'No activity',createdAt:serverTimestamp(),updatedAt:serverTimestamp(),deletedAt:null,revision:0,clientMutationId:missingActivity}));
+  const forgedId='comment-mutation-0003', forged=writeBatch(owner);
+  forged.set(doc(owner,...commentPath,forgedId),{authorUid:'editor-a',body:'Forged author',createdAt:serverTimestamp(),updatedAt:serverTimestamp(),deletedAt:null,revision:0,clientMutationId:forgedId});
+  forged.set(doc(owner,...activityPath,forgedId),{actorUid:'owner-a',action:'comment-created',boardId:'revision-board',clientMutationId:forgedId,createdAt:serverTimestamp()});
+  await assertFails(forged.commit());
+  const viewerId='comment-mutation-0004', viewerWrite=writeBatch(viewer);
+  viewerWrite.set(doc(viewer,...commentPath,viewerId),{authorUid:'viewer-a',body:'Viewer write',createdAt:serverTimestamp(),updatedAt:serverTimestamp(),deletedAt:null,revision:0,clientMutationId:viewerId});
+  viewerWrite.set(doc(viewer,...activityPath,viewerId),{actorUid:'viewer-a',action:'comment-created',boardId:'revision-board',clientMutationId:viewerId,createdAt:serverTimestamp()});
+  await assertFails(viewerWrite.commit());
+  const longId='comment-mutation-0005', oversized=writeBatch(editor);
+  oversized.set(doc(editor,...commentPath,longId),{authorUid:'editor-a',body:'x'.repeat(2001),createdAt:serverTimestamp(),updatedAt:serverTimestamp(),deletedAt:null,revision:0,clientMutationId:longId});
+  oversized.set(doc(editor,...activityPath,longId),{actorUid:'editor-a',action:'comment-created',boardId:'revision-board',clientMutationId:longId,createdAt:serverTimestamp()});
+  await assertFails(oversized.commit());
+
+  const editId='comment-mutation-0006', edit=writeBatch(editor);
+  edit.update(comment,{body:'Edited authenticated comment',updatedAt:serverTimestamp(),revision:1,clientMutationId:editId});
+  edit.set(doc(editor,...activityPath,editId),{actorUid:'editor-a',action:'comment-updated',boardId:'revision-board',clientMutationId:editId,createdAt:serverTimestamp()});
+  await assertSucceeds(edit.commit());
+  const ownerEditId='comment-mutation-0007', ownerEdit=writeBatch(owner);
+  ownerEdit.update(doc(owner,...commentPath,createId),{body:'Owner cannot edit another author',updatedAt:serverTimestamp(),revision:2,clientMutationId:ownerEditId});
+  ownerEdit.set(doc(owner,...activityPath,ownerEditId),{actorUid:'owner-a',action:'comment-updated',boardId:'revision-board',clientMutationId:ownerEditId,createdAt:serverTimestamp()});
+  await assertFails(ownerEdit.commit());
+
+  const removeId='comment-mutation-0008', removal=writeBatch(owner);
+  removal.update(doc(owner,...commentPath,createId),{body:'',deletedAt:serverTimestamp(),updatedAt:serverTimestamp(),revision:2,clientMutationId:removeId});
+  removal.set(doc(owner,...activityPath,removeId),{actorUid:'owner-a',action:'comment-deleted',boardId:'revision-board',clientMutationId:removeId,createdAt:serverTimestamp()});
+  await assertSucceeds(removal.commit());
+  await assertFails(deleteDoc(doc(owner,...commentPath,createId)));
+  const afterDeleteId='comment-mutation-0009', afterDelete=writeBatch(editor);
+  afterDelete.update(comment,{body:'Cannot restore',deletedAt:null,updatedAt:serverTimestamp(),revision:3,clientMutationId:afterDeleteId});
+  afterDelete.set(doc(editor,...activityPath,afterDeleteId),{actorUid:'editor-a',action:'comment-updated',boardId:'revision-board',clientMutationId:afterDeleteId,createdAt:serverTimestamp()});
+  await assertFails(afterDelete.commit());
+});
+
 test('owner bootstrap and backup-first board upload are permitted as separate verified writes', async () => {
   const owner = dbFor('migration-owner', 'migration@example.com');
   const bootstrap = writeBatch(owner);
