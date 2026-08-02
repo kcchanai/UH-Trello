@@ -157,7 +157,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
 
   window.addEventListener('flowboard:cloud-preview-change', () => {
     const mode = globalThis.FlowboardApp?.getMode().kind, cloudMode = ['cloud-preview','cloud'].includes(mode);
-    returnLocal.hidden = !cloudMode; exportCloud.hidden = mode !== 'cloud-preview'; migrateCloud.hidden = true;
+    returnLocal.hidden = !cloudMode; exportCloud.hidden = !cloudMode; migrateCloud.hidden = true;
     if (!cloudMode && workspacesDialog.open) { workspacesList.replaceChildren(); workspacesStatus.textContent = 'Workspace access ended. Your browser-local workspace is active.'; }
   });
 

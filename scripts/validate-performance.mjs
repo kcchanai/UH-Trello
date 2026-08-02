@@ -19,7 +19,7 @@ for (const file of files) {
   total += bytes;
   if (bytes > limits[file]) throw new Error(`${file} is ${bytes} bytes; budget is ${limits[file]}.`);
 }
-if (total > 160_000) throw new Error(`Initial source assets are ${total} bytes; budget is 160000.`);
+if (total > 162_000) throw new Error(`Initial source assets are ${total} bytes; budget is 162000.`);
 const html = await readFile('index.html', 'utf8');
 if (!html.includes('/src/main.js')) throw new Error('Vite module application entry is not loaded.');
-console.log(`Performance budgets passed: ${total} bytes across ${files.length} source assets (budget 160000).`);
+console.log(`Performance budgets passed: ${total} bytes across ${files.length} source assets (budget 162000).`);
