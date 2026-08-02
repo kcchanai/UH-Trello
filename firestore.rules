@@ -302,7 +302,9 @@ service cloud.firestore {
           allow update: if canEdit(workspaceId) && validRevision() && validCardAssignmentUpdate(workspaceId);
           allow delete: if canEdit(workspaceId);
           match /comments/{commentId} {
-            allow read: if isMember(workspaceId) && exists(cardPath(workspaceId, boardId, cardId));
+            allow get: if isMember(workspaceId) && exists(cardPath(workspaceId, boardId, cardId));
+            allow list: if isMember(workspaceId) && exists(cardPath(workspaceId, boardId, cardId))
+              && request.query.limit != null && request.query.limit <= 25;
             allow create: if canEdit(workspaceId) && exists(cardPath(workspaceId, boardId, cardId)) && validCommentCreate(workspaceId, boardId, commentId);
             allow update: if canEdit(workspaceId) && (validCommentEdit(workspaceId, boardId) || validCommentRemoval(workspaceId, boardId));
             allow delete: if false;

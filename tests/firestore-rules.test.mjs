@@ -7,9 +7,13 @@ import {
   initializeTestEnvironment
 } from '@firebase/rules-unit-testing';
 import {
+  collection,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  limit,
+  query,
   serverTimestamp,
   setDoc,
   Timestamp,
@@ -176,6 +180,9 @@ test('authenticated comments are actor-bound, activity-coupled, revisioned, and 
   create.set(doc(editor,...activityPath,createId),{actorUid:'editor-a',action:'comment-created',boardId:'revision-board',clientMutationId:createId,createdAt:serverTimestamp()});
   await assertSucceeds(create.commit());
   await assertSucceeds(getDoc(doc(viewer,...commentPath,createId)));
+  const commentCollection=collection(viewer,...commentPath);
+  await assertSucceeds(getDocs(query(commentCollection,limit(25))));
+  await assertFails(getDocs(query(commentCollection,limit(26))));
   await assertFails(getDoc(doc(outsider,...commentPath,createId)));
 
   const missingActivity='comment-mutation-0002';
