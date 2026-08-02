@@ -134,6 +134,20 @@ service cloud.firestore {
         && request.resource.data.clientMutationId.size() <= 128;
     }
 
+    function validActivity(data, activityId) {
+      return data.keys().hasAll(['actorUid', 'action', 'boardId', 'clientMutationId', 'createdAt'])
+        && data.keys().hasOnly(['actorUid', 'action', 'boardId', 'clientMutationId', 'createdAt'])
+        && data.actorUid == request.auth.uid
+        && data.action in ['board-created', 'board-updated', 'card-created', 'card-updated', 'card-moved', 'list-created', 'list-updated', 'workspace-updated']
+        && data.boardId is string
+        && data.boardId.size() <= 128
+        && data.clientMutationId is string
+        && data.clientMutationId == activityId
+        && data.clientMutationId.size() >= 16
+        && data.clientMutationId.size() <= 128
+        && data.createdAt == request.time;
+    }
+
     match /users/{uid} {
       allow read, create, update: if signedIn() && request.auth.uid == uid;
       allow delete: if false;
@@ -207,8 +221,7 @@ service cloud.firestore {
 
       match /activity/{activityId} {
         allow read: if isMember(workspaceId);
-        allow create: if canEdit(workspaceId)
-          && request.resource.data.actorUid == request.auth.uid;
+        allow create: if canEdit(workspaceId) && validActivity(request.resource.data, activityId);
         allow update, delete: if false;
       }
     }

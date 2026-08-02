@@ -1,7 +1,7 @@
 import {granularizeBoard, rehydrateGranularWorkspace} from '../granular-workspace.js';
 import {
-  arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, orderBy, query,
-  runTransaction, serverTimestamp, Timestamp, updateDoc, writeBatch
+  arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, onSnapshot, orderBy, query,
+  runTransaction, serverTimestamp, startAfter, Timestamp, updateDoc, writeBatch
 } from 'firebase/firestore';
 
 const requireUser = auth => {
@@ -41,6 +41,15 @@ export async function fetchCloudWorkspace(app, auth, workspaceId) {
     cards:(await getDocs(query(collection(item.ref, 'cards'), orderBy('rank')))).docs.map(doc => ({id:doc.id, ...doc.data()}))
   })));
   return rehydrateGranularWorkspace(workspace, records);
+}
+
+export async function listWorkspaceActivity(app, auth, workspaceId, {cursor = null, pageSize = 25} = {}) {
+  const db = getFirestore(app); requireUser(auth);
+  const safeSize = Math.min(Math.max(Number.isInteger(pageSize) ? pageSize : 25, 1), 25);
+  const constraints = [orderBy('createdAt', 'desc'), limit(safeSize)];
+  if (cursor) constraints.splice(1, 0, startAfter(cursor));
+  const snapshot = await getDocs(query(collection(db, 'workspaces', workspaceId, 'activity'), ...constraints));
+  return {entries:snapshot.docs.map(item => ({id:item.id, ...item.data()})), cursor:snapshot.docs.at(-1) || null, hasMore:snapshot.size === safeSize};
 }
 
 export function subscribeCloudWorkspace(app, auth, {workspaceId, boardId, onBoard, onMembership, onStatus, onError}) {
@@ -123,13 +132,18 @@ const granularDocuments = workspace => {
   return documents;
 };
 
-export async function applyCloudWorkspaceMutation(app, auth, {workspaceId, before, next, clientMutationId}) {
-  const db = getFirestore(app); requireUser(auth);
-  if (!/^[A-Za-z0-9_-]{16,128}$/.test(clientMutationId || '') || !before || !next) throw Object.assign(new Error('The cloud edit request is invalid.'), {code:'INVALID_MUTATION'});
+export async function applyCloudWorkspaceMutation(app, auth, {workspaceId, before, next, clientMutationId, activityAction = 'workspace-updated'}) {
+  const db = getFirestore(app), user = requireUser(auth);
+  const allowedActivityActions = ['board-created','board-updated','card-created','card-updated','card-moved','list-created','list-updated','workspace-updated'];
+  if (!allowedActivityActions.includes(activityAction) || !/^[A-Za-z0-9_-]{16,128}$/.test(clientMutationId || '') || !before || !next) throw Object.assign(new Error('The cloud edit request is invalid.'), {code:'INVALID_MUTATION'});
   const previous = granularDocuments(before), desired = granularDocuments(next);
   const paths = [...new Set([...previous.keys(), ...desired.keys()])].filter(path => comparable(previous.get(path)?.data) !== comparable(desired.get(path)?.data));
   if (paths.length > 300) throw Object.assign(new Error('This edit changes too many cloud records. Make a smaller edit and try again.'), {code:'MUTATION_TOO_LARGE'});
+  if (!paths.length) return fetchCloudWorkspace(app, auth, workspaceId);
+  const activityRef = doc(db, 'workspaces', workspaceId, 'activity', clientMutationId);
   await runTransaction(db, async transaction => {
+    const priorActivity = await transaction.get(activityRef);
+    if (priorActivity.exists() && priorActivity.data().clientMutationId !== clientMutationId) throw Object.assign(new Error('The activity identifier is unavailable.'), {code:'ACTIVITY_IDENTIFIER_CONFLICT'});
     for (const path of paths) {
       const prior = previous.get(path), target = desired.get(path), ref = doc(db, 'workspaces', workspaceId, ...path.split('/'));
       const current = await transaction.get(ref), expectedRevision = prior?.data.revision ?? 0;
@@ -144,6 +158,7 @@ export async function applyCloudWorkspaceMutation(app, auth, {workspaceId, befor
         else transaction.set(ref, {...data, revision:0, clientMutationId, updatedAt:serverTimestamp()});
       }
     }
+    if (!priorActivity.exists()) transaction.set(activityRef, {actorUid:user.uid, action:activityAction, boardId:next.activeBoardId || '', clientMutationId, createdAt:serverTimestamp()});
   });
   return fetchCloudWorkspace(app, auth, workspaceId);
 }
