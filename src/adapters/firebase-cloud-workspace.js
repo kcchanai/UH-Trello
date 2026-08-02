@@ -1,6 +1,6 @@
 import {granularizeBoard, rehydrateGranularWorkspace} from '../granular-workspace.js';
 import {
-  arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, orderBy, query,
+  arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, orderBy, query,
   runTransaction, serverTimestamp, Timestamp, updateDoc, writeBatch
 } from 'firebase/firestore';
 
@@ -41,6 +41,33 @@ export async function fetchCloudWorkspace(app, auth, workspaceId) {
     cards:(await getDocs(query(collection(item.ref, 'cards'), orderBy('rank')))).docs.map(doc => ({id:doc.id, ...doc.data()}))
   })));
   return rehydrateGranularWorkspace(workspace, records);
+}
+
+export function subscribeCloudWorkspace(app, auth, {workspaceId, boardId, onBoard, onMembership, onStatus, onError}) {
+  const db = getFirestore(app), user = requireUser(auth), snapshots = {board:null, lists:null, cards:null};
+  let stopped = false, unsubscribers = [];
+  const stop = () => { if (stopped) return; stopped = true; unsubscribers.splice(0).forEach(unsubscribe => unsubscribe()); };
+  const fail = error => { if (stopped) return; stop(); onError?.(error); };
+  const metadataStatus = metadata => onStatus?.(metadata.hasPendingWrites ? 'saving' : metadata.fromCache ? 'offline' : 'synced');
+  const emitBoard = () => {
+    if (stopped || !snapshots.board || !snapshots.lists || !snapshots.cards) return;
+    if (!snapshots.board.exists()) return fail(Object.assign(new Error('The active cloud board is no longer available.'), {code:'BOARD_NOT_FOUND'}));
+    const board = {id:snapshots.board.id, ...snapshots.board.data()};
+    const lists = snapshots.lists.docs.map(item => ({id:item.id, ...item.data()}));
+    const cards = snapshots.cards.docs.map(item => ({id:item.id, ...item.data()}));
+    onBoard?.({board, lists, cards});
+    metadataStatus([snapshots.board, snapshots.lists, snapshots.cards].some(item => item.metadata.hasPendingWrites) ? {hasPendingWrites:true, fromCache:false} : {hasPendingWrites:false, fromCache:[snapshots.board, snapshots.lists, snapshots.cards].some(item => item.metadata.fromCache)});
+  };
+  const options = {includeMetadataChanges:true};
+  const watch = (reference, next) => onSnapshot(reference, options, next, fail);
+  unsubscribers = [
+    watch(doc(db, 'workspaces', workspaceId), snapshot => { if (!snapshot.exists()) return fail(Object.assign(new Error('Workspace access was removed.'), {code:'ACCESS_REMOVED'})); }),
+    watch(doc(db, 'workspaces', workspaceId, 'members', user.uid), snapshot => { if (!snapshot.exists()) return fail(Object.assign(new Error('Workspace access was removed.'), {code:'ACCESS_REMOVED'})); onMembership?.(snapshot.data().role); }),
+    watch(doc(db, 'workspaces', workspaceId, 'boards', boardId), snapshot => { snapshots.board = snapshot; emitBoard(); }),
+    watch(query(collection(db, 'workspaces', workspaceId, 'boards', boardId, 'lists'), orderBy('rank')), snapshot => { snapshots.lists = snapshot; emitBoard(); }),
+    watch(query(collection(db, 'workspaces', workspaceId, 'boards', boardId, 'cards'), orderBy('rank')), snapshot => { snapshots.cards = snapshot; emitBoard(); })
+  ];
+  return stop;
 }
 
 export async function migrateWorkspaceToGranular(app, auth, workspaceId) {

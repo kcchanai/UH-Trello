@@ -1,9 +1,9 @@
 import {readFile} from 'node:fs/promises';
 
-const [html, app, core, main, localAdapter, firebaseAdapter, cloudAdapter, authUI, cloudUI, inviteUI, membersUI] = await Promise.all([
+const [html, app, core, main, localAdapter, firebaseAdapter, cloudAdapter, authUI, cloudUI, inviteUI, membersUI, cloudSync] = await Promise.all([
   'index.html', 'app.js', 'state-core.js', 'src/main.js', 'src/adapters/local-workspace-adapter.js',
   'src/adapters/firebase-workspace-adapter.js', 'src/adapters/firebase-cloud-workspace.js',
-  'src/auth-ui.js', 'src/cloud-workspace-ui.js', 'src/invite-ui.js', 'src/members-ui.js'
+  'src/auth-ui.js', 'src/cloud-workspace-ui.js', 'src/invite-ui.js', 'src/members-ui.js', 'src/cloud-sync-controller.js'
 ].map(file => readFile(file, 'utf8')));
 
 const required = [
@@ -31,4 +31,5 @@ if (!firebaseAdapter.includes('firebase-cloud-workspace.js') || !cloudAdapter.in
 if (!cloudUI.includes('flowboard-before-cloud-') || !cloudUI.includes('still using the local original')) throw new Error('Cloud migration UI lacks backup-first local safety handling.');
 if (!app.includes('openCloudPreview') || !app.includes("activeWorkspace.kind !== 'local'") || !cloudUI.includes('read-only cloud preview')) throw new Error('Cloud preview does not preserve the local-only boundary.');
 if (!html.includes('workspace-members-dialog') || !inviteUI.includes('acceptInvite') || !membersUI.includes('transferOwnership')) throw new Error('Secure membership administration UI is incomplete.');
+if (!firebaseAdapter.includes('subscribeWorkspace') || !cloudAdapter.includes('onSnapshot') || !cloudSync.includes("window.addEventListener('offline'") || !cloudSync.includes('handleCloudAccessRemoved')) throw new Error('Realtime cloud lifecycle boundary is incomplete.');
 console.log(`Static validation passed: ${required.length} semantic/runtime guards plus adapter-boundary checks.`);
