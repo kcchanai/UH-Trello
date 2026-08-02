@@ -172,7 +172,10 @@ test('cloud assignments are bounded, unique, member-backed, and editor-controlle
 });
 
 test('authenticated comments are actor-bound, activity-coupled, revisioned, and viewer read-only', async () => {
-  await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(),'workspaces','alpha','boards','revision-board','lists','list-a'),{title:'Revision list',rank:0,revision:0,clientMutationId:'revision-list-0001'}));
+  await env.withSecurityRulesDisabled(async context => { const db=context.firestore(); await Promise.all([
+    setDoc(doc(db,'workspaces','alpha','boards','revision-board'),{title:'Revision board',rank:0,revision:0,clientMutationId:'revision-board-0001'}),
+    setDoc(doc(db,'workspaces','alpha','boards','revision-board','lists','list-a'),{title:'Revision list',rank:0,revision:0,clientMutationId:'revision-list-0001'})
+  ]); });
   const editor=dbFor('editor-a'), owner=dbFor('owner-a'), viewer=dbFor('viewer-a'), outsider=dbFor('owner-b');
   const commentPath=['workspaces','alpha','boards','revision-board','cards','revision-card','comments'];
   const activityPath=['workspaces','alpha','activity'];
