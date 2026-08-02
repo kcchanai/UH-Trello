@@ -28,6 +28,7 @@ test('card detail dialog closes with Escape and returns focus', async ({page}) =
 
 test('viewer card dialog close button remains enabled and returns focus', async ({page}) => {
   await page.goto('/UH-Trello/');
+  await page.waitForFunction(() => globalThis.FlowboardApp && globalThis.FlowboardState);
   await page.evaluate(() => FlowboardApp.openCloudPreview(FlowboardState.makeWorkspace(), {id:'viewer-test', name:'Viewer test', role:'viewer'}));
   const card = page.locator('.card-open').first();
   await card.click();
