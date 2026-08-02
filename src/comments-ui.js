@@ -6,7 +6,7 @@ export function initializeCommentsUI(adapter) {
   let session=null, active=null, stopListener=null, generation=0, live=[], older=[], cursor=null, hasMore=false, members=new Map(), pendingRemoval=null, busy=false;
   const stop=()=>{generation+=1; stopListener?.(); stopListener=null; active=null; live=[]; older=[]; cursor=null; hasMore=false; members.clear(); list.replaceChildren(); status.textContent=''; count.textContent=''; section.hidden=true;};
   const context=()=>{const mode=globalThis.FlowboardApp?.getMode?.(), boardId=globalThis.FlowboardApp?.getActiveBoardId?.(), cardId=dialog.dataset.cardId;return mode && ['cloud','cloud-preview'].includes(mode.kind) && mode.id && boardId && cardId ? {workspaceId:mode.id,boardId,cardId,role:mode.role,editable:mode.kind==='cloud'} : null;};
-  const authorName=uid=>uid===session?.uid?'You':members.get(uid)?.displayName || 'Former member';
+  const authorName=uid=>{if(uid===session?.uid)return 'You';const member=members.get(uid);return member?(member.displayName || member.emailLower || 'Workspace member'):'Former member';};
   const formatTime=value=>{const date=timestamp(value);return date?date.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'Pending';};
   const allEntries=()=>{const byId=new Map([...older,...live].map(entry=>[entry.id,entry]));return [...byId.values()].sort((a,b)=>(timestamp(a.createdAt)?.getTime()||0)-(timestamp(b.createdAt)?.getTime()||0));};
   const button=(label,action,id,quiet=true)=>{const control=document.createElement('button');control.type='button';control.className=quiet?'text-button':'button button-primary';control.textContent=label;control.dataset.action=action;control.dataset.commentId=id;return control;};
