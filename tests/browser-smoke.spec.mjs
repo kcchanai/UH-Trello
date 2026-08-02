@@ -26,6 +26,19 @@ test('card detail dialog closes with Escape and returns focus', async ({page}) =
   await expect(card).toBeFocused();
 });
 
+test('viewer card dialog close button remains enabled and returns focus', async ({page}) => {
+  await page.goto('/UH-Trello/');
+  await page.evaluate(() => FlowboardApp.openCloudPreview(FlowboardState.makeWorkspace(), {id:'viewer-test', name:'Viewer test', role:'viewer'}));
+  const card = page.locator('.card-open').first();
+  await card.click();
+  const dialog = page.locator('#card-dialog'), close = dialog.getByRole('button', {name:'Close card details'});
+  await expect(dialog).toBeVisible();
+  await expect(close).toBeEnabled();
+  await close.click();
+  await expect(dialog).toBeHidden();
+  await expect(card).toBeFocused();
+});
+
 test('Google account dialog preserves an explicit local-only boundary', async ({page}) => {
   await page.goto('/UH-Trello/');
   const account = page.getByRole('button', {name: 'Sign in with Google'});
