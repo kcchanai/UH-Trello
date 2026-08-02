@@ -11,7 +11,7 @@ export function initializeMembersUI(adapter) {
   const transferForm = document.querySelector('#transfer-ownership-form'), successor = document.querySelector('#ownership-successor'), formerOwnerRole = document.querySelector('#former-owner-role');
   let session = null, workspaceId = null, owner = false;
   const message = text => { status.textContent = text; };
-  const activeWorkspace = () => globalThis.FlowboardApp?.getMode()?.kind === 'cloud-preview' ? globalThis.FlowboardApp.getMode() : null;
+  const activeWorkspace = () => ['cloud-preview', 'cloud'].includes(globalThis.FlowboardApp?.getMode()?.kind) ? globalThis.FlowboardApp.getMode() : null;
   const copy = async text => { try { await navigator.clipboard.writeText(text); linkStatus.textContent = 'Invitation link copied.'; } catch { linkStatus.textContent = `Copy this invitation link: ${text}`; } };
   const refresh = async () => {
     const active = activeWorkspace(); workspaceId = active?.id || null;
