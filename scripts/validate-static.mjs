@@ -1,9 +1,9 @@
 import {readFile} from 'node:fs/promises';
 
-const [html, app, core, main, localAdapter, firebaseAdapter, cloudAdapter, authUI, cloudUI, inviteUI, membersUI, cloudSync] = await Promise.all([
+const [html, app, core, main, localAdapter, firebaseAdapter, cloudAdapter, authUI, cloudUI, inviteUI, membersUI, cloudSync, activityUI] = await Promise.all([
   'index.html', 'app.js', 'state-core.js', 'src/main.js', 'src/adapters/local-workspace-adapter.js',
   'src/adapters/firebase-workspace-adapter.js', 'src/adapters/firebase-cloud-workspace.js',
-  'src/auth-ui.js', 'src/cloud-workspace-ui.js', 'src/invite-ui.js', 'src/members-ui.js', 'src/cloud-sync-controller.js'
+  'src/auth-ui.js', 'src/cloud-workspace-ui.js', 'src/invite-ui.js', 'src/members-ui.js', 'src/cloud-sync-controller.js', 'src/activity-ui.js'
 ].map(file => readFile(file, 'utf8')));
 
 const required = [
@@ -32,6 +32,7 @@ if (!cloudUI.includes('flowboard-before-cloud-') || !cloudUI.includes('still usi
 if (!app.includes('openCloudPreview') || !app.includes("activeWorkspace.kind !== 'local'") || !cloudUI.includes('read-only cloud preview')) throw new Error('Cloud preview does not preserve the local-only boundary.');
 if (!html.includes('workspace-members-dialog') || !inviteUI.includes('acceptInvite') || !membersUI.includes('transferOwnership')) throw new Error('Secure membership administration UI is incomplete.');
 if (!firebaseAdapter.includes('subscribeWorkspace') || !cloudAdapter.includes('onSnapshot') || !cloudSync.includes("window.addEventListener('offline'") || !cloudSync.includes('handleCloudAccessRemoved')) throw new Error('Realtime cloud lifecycle boundary is incomplete.');
+if (!html.includes('cloud-activity-dialog') || !activityUI.includes('listActivity') || !activityUI.includes('pageSize:25') || !activityUI.includes('text.textContent')) throw new Error('Authenticated activity feed is incomplete or unbounded.');
 const cloudSources = [firebaseAdapter, cloudAdapter, cloudSync, main].join('\n');
 if (/enableIndexedDbPersistence|persistentLocalCache|persistentMultipleTabManager|CACHE_SIZE_UNLIMITED/.test(cloudSources)) throw new Error('Persistent Firestore caching is approval-gated and must remain disabled.');
 console.log(`Static validation passed: ${required.length} semantic/runtime guards plus adapter-boundary checks.`);

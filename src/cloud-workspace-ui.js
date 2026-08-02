@@ -116,7 +116,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
             const cloudWorkspace = await cloudAdapter.fetchWorkspace(entry.id);
             if (editable) globalThis.FlowboardApp.openCloudWorkspace(cloudWorkspace, entry);
             else globalThis.FlowboardApp.openCloudPreview(cloudWorkspace, entry);
-            selectedCloudEntry = entry; returnLocal.hidden = false; exportCloud.hidden = editable;
+            selectedCloudEntry = entry; window.dispatchEvent(new CustomEvent('flowboard:cloud-selection', {detail:entry})); returnLocal.hidden = false; exportCloud.hidden = editable;
             migrateCloud.hidden = entry.ownerUid !== session.uid || entry.migration?.state === 'verified';
             workspacesStatus.textContent = editable ? `Editing “${entry.name || 'Untitled cloud workspace'}” in cloud mode. Local data is unchanged.` : `Viewing “${entry.name || 'Untitled cloud workspace'}” as a read-only preview. Local data is unchanged.`;
           } catch (error) {
@@ -135,7 +135,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
   workspacesDialog.addEventListener('cancel', event => { event.preventDefault(); workspacesDialog.close(); });
   workspacesDialog.addEventListener('close', () => workspaceButton.focus());
   returnLocal.addEventListener('click', () => {
-    globalThis.FlowboardApp.returnToLocal(); returnLocal.hidden = true; exportCloud.hidden = true;
+    globalThis.FlowboardApp.returnToLocal(); selectedCloudEntry = null; window.dispatchEvent(new CustomEvent('flowboard:cloud-selection')); returnLocal.hidden = true; exportCloud.hidden = true;
     workspacesStatus.textContent = 'Returned to the browser-local workspace.';
   });
   migrateCloud.addEventListener('click', async () => {
@@ -158,6 +158,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
   window.addEventListener('flowboard:cloud-preview-change', () => {
     const mode = globalThis.FlowboardApp?.getMode().kind, cloudMode = ['cloud-preview','cloud'].includes(mode);
     returnLocal.hidden = !cloudMode; exportCloud.hidden = !cloudMode; migrateCloud.hidden = true;
+    if (!cloudMode) { selectedCloudEntry = null; window.dispatchEvent(new CustomEvent('flowboard:cloud-selection')); }
     if (!cloudMode && workspacesDialog.open) { workspacesList.replaceChildren(); workspacesStatus.textContent = 'Workspace access ended. Your browser-local workspace is active.'; }
   });
 
