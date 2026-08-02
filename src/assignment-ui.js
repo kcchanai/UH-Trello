@@ -1,6 +1,6 @@
 export function initializeAssignmentUI(adapter) {
   const dialog=document.querySelector('#card-dialog'), localField=document.querySelector('#local-assignees-field'), cloudField=document.querySelector('#cloud-assignees-field'), options=document.querySelector('#cloud-assignees-options'), status=document.querySelector('#cloud-assignees-status'), uidInput=document.querySelector('#assignee-uids-input'), namesInput=document.querySelector('#assignees-input'), legacyInput=document.querySelector('#legacy-assignees-input');
-  let session=null, cachedWorkspace='', members=[];
+  let session=null, members=[];
   const mode=()=>globalThis.FlowboardApp?.getMode?.() || {kind:'local'};
   const memberName=member=>member.displayName || member.emailLower || member.uid;
   const updateSelection=()=>{
@@ -16,7 +16,7 @@ export function initializeAssignmentUI(adapter) {
     if (!cloud || !dialog.open || !session) return;
     status.textContent='Loading workspace members...'; options.replaceChildren();
     try {
-      if (cachedWorkspace!==active.id) { members=await adapter.listMembers(active.id); cachedWorkspace=active.id; }
+      members=await adapter.listMembers(active.id);
       const selected=uidInput.value.split(',').filter(Boolean), current=new Set(members.map(member=>member.uid));
       const legacy=legacyInput.value.split(',').map(value=>value.trim()).filter(Boolean), former=selected.filter(uid=>!current.has(uid));
       [...members, ...former.map(uid=>({uid, displayName:'Former member', role:'removed'}))].forEach(member=>{
@@ -30,6 +30,6 @@ export function initializeAssignmentUI(adapter) {
     } catch (error) { console.error('Flowboard assignment members failed to load.',error); status.textContent='Workspace members could not be loaded. Assignment changes are unavailable.'; }
   };
   new MutationObserver(()=>render()).observe(dialog,{attributes:true,attributeFilter:['open']});
-  window.addEventListener('flowboard:cloud-preview-change',()=>{cachedWorkspace=''; members=[]; render();});
-  return {setSession(next){session=next; if(!session){cachedWorkspace='';members=[];} render();}};
+  window.addEventListener('flowboard:cloud-preview-change',()=>{members=[]; render();});
+  return {setSession(next){session=next; if(!session) members=[]; render();}};
 }
