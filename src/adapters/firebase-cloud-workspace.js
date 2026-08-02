@@ -132,14 +132,23 @@ const granularDocuments = workspace => {
   return documents;
 };
 
-export async function applyCloudWorkspaceMutation(app, auth, {workspaceId, before, next, clientMutationId, activityAction = 'workspace-updated'}) {
+export async function applyCloudWorkspaceMutation(app, auth, {workspaceId, before, next, clientMutationId, activityAction = null}) {
   const db = getFirestore(app), user = requireUser(auth);
   const allowedActivityActions = ['board-created','board-updated','card-created','card-updated','card-moved','list-created','list-updated','workspace-updated'];
-  if (!allowedActivityActions.includes(activityAction) || !/^[A-Za-z0-9_-]{16,128}$/.test(clientMutationId || '') || !before || !next) throw Object.assign(new Error('The cloud edit request is invalid.'), {code:'INVALID_MUTATION'});
+  if (!/^[A-Za-z0-9_-]{16,128}$/.test(clientMutationId || '') || !before || !next) throw Object.assign(new Error('The cloud edit request is invalid.'), {code:'INVALID_MUTATION'});
   const previous = granularDocuments(before), desired = granularDocuments(next);
   const paths = [...new Set([...previous.keys(), ...desired.keys()])].filter(path => comparable(previous.get(path)?.data) !== comparable(desired.get(path)?.data));
   if (paths.length > 300) throw Object.assign(new Error('This edit changes too many cloud records. Make a smaller edit and try again.'), {code:'MUTATION_TOO_LARGE'});
   if (!paths.length) return fetchCloudWorkspace(app, auth, workspaceId);
+  const activityPath = paths.find(path => path.includes('/cards/')) || paths.find(path => path.includes('/lists/')) || paths[0];
+  const activityPrior = previous.get(activityPath), activityTarget = desired.get(activityPath);
+  if (!activityAction) {
+    if (activityPath.includes('/cards/')) activityAction = !activityPrior && activityTarget ? 'card-created' : activityPrior && activityTarget && activityPrior.data.listId !== activityTarget.data.listId ? 'card-moved' : 'card-updated';
+    else if (activityPath.includes('/lists/')) activityAction = !activityPrior && activityTarget ? 'list-created' : 'list-updated';
+    else if (activityPath.startsWith('boards/')) activityAction = !activityPrior && activityTarget ? 'board-created' : 'board-updated';
+    else activityAction = 'workspace-updated';
+  }
+  if (!allowedActivityActions.includes(activityAction)) throw Object.assign(new Error('The cloud activity request is invalid.'), {code:'INVALID_MUTATION'});
   const activityRef = doc(db, 'workspaces', workspaceId, 'activity', clientMutationId);
   await runTransaction(db, async transaction => {
     const priorActivity = await transaction.get(activityRef);
