@@ -204,7 +204,27 @@ This proves deployed Rules enforced revocation for queued and direct operations,
 
 Corrective control: the cloud adapter now exposes a server-backed `verifyWorkspaceAccess` membership read, and the sync controller performs that preflight on the browser `online` event before restarting listeners. A missing or denied membership triggers the existing access-removal path, stops subscriptions, reloads browser-local state, and clears cloud mode. A regression test reproduces removal while offline and requires access removal on reconnect.
 
-Production retest is required after deployment. No editor membership should be restored until the corrected client is deployed.
+Production retest was required after deployment. No editor membership was restored until the corrected client was deployed.
+
+### Revocation/offline production retest - PASS - 2026-08-02
+
+After commit `3d2e069` passed CI and deployed, the editor was restored, opened the corrected release, preserved a fresh local-state fingerprint, and went offline. The owner removed the editor while that browser remained offline. On reconnect without refresh:
+
+- server-backed membership preflight detected removed access;
+- realtime subscriptions stopped;
+- application automatically returned to local mode;
+- browser-local workspace state remained unchanged;
+- retest sentinel: `LISTENER RETEST 2/2 PASS`.
+
+The owner then issued a fresh invitation and restored the account as editor. Final verification established:
+
+- cloud mode reopened successfully;
+- restored role was editor;
+- the originally rejected queued comment was absent from production;
+- restoration sentinel: `EDITOR FINAL RESTORE 3/3 PASS`;
+- no account identity, email, UID, invitation value, production document ID, comment body, response body, or full error object was retained.
+
+Combined with attempt 1, this establishes queued offline write rejection, post-revocation direct read/write denial, listener shutdown on reconnect, automatic return to unchanged local data, and safe editor restoration. The Phase H direct authorization and revocation/offline groups are complete.
 
 ## Safety boundary
 
