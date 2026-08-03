@@ -52,6 +52,24 @@ Recorded result:
 
 This establishes the owner positive comment lifecycle only. Editor cross-author denial, viewer denial, non-member denial, cross-workspace isolation, raw query bounds, revocation, and remaining Phase H checks are still pending.
 
+### Editor direct SDK lifecycle and cross-author boundary - PASS - 2026-08-02
+
+Tested against deployed release `df70d2ba52f60327f1ec931fb9abed0628acd96c` from an authenticated editor browser session through `FlowboardRuntime.cloudAdapter`.
+
+Recorded result:
+
+- direct own-comment creation: allowed;
+- direct revision-checked own-comment edit: allowed;
+- direct revision-checked own-comment soft removal: allowed;
+- direct edit of an active owner-authored comment: denied with `permission-denied`;
+- direct removal of an active owner-authored comment: denied with `permission-denied`;
+- final editor probe result: pass;
+- no Firebase configuration value, token, UID, workspace ID, board ID, card ID, comment ID, mutation ID, response body, or full error object was retained in this record.
+
+The first cross-author probe selected the editor's newly soft-removed comment while its deletion timestamp was resolving and returned the client-side `COMMENT_UNAVAILABLE` precondition. The corrected probe selected a different author with `authorUid != current session UID` and `deletedAt == null`, then obtained the required server-side permission denials.
+
+This establishes the editor positive and cross-author comment boundaries. Viewer denial, non-member denial, cross-workspace isolation, raw query bounds, revocation, and remaining Phase H checks are still pending.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.
@@ -138,6 +156,8 @@ await FlowboardRuntime.cloudAdapter.fetchWorkspace(H.workspaceId);
 ```
 
 For a viewer, both calls must reject with permission denial. For a non-member, `fetchWorkspace` must reject. A viewer may also attempt `updateComment` and `removeComment` against a known test comment; both must reject.
+
+When selecting a cross-author target after creating and soft-removing a test comment, do not select by `deletedAt` alone while a server timestamp may still be resolving. Resolve the current session and require both a different `authorUid` and `deletedAt == null`. A `COMMENT_UNAVAILABLE` client precondition is not production Rules denial evidence.
 
 Cross-workspace and malformed-ID probes use a different known workspace ID and deliberately forged board/card IDs. Do not use an administrator console write as evidence because administrator access bypasses Security Rules.
 
