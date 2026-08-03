@@ -10,6 +10,32 @@ Current deployed client: see the latest `main` commit and its GitHub Pages cache
 
 Production Rules publication evidence must record the Firebase Console active revision and the exact source-controlled Rules commit. The G3 Rules revision was manually published before Phase H began.
 
+## Automated validation evidence - 2026-08-02
+
+Aaron ran the complete local non-Emulator chain from PowerShell through `cmd.exe`:
+
+```text
+npm test && npm run check && npm run build && git diff --check
+```
+
+Recorded result:
+
+- application tests: 13 passed, 0 failed;
+- syntax/static validation: passed;
+- semantic/runtime guards and adapter-boundary checks: passed;
+- performance budget: 199,522 of 210,000 bytes;
+- production Vite build: passed;
+- `git diff --check`: passed with no output.
+
+Aaron separately ran `npm.cmd run test:rules`. The Java-backed Firestore Emulator suite reported 21 passed, 0 failed, and script exit code 0. The subsequent Firestore Emulator `SIGINT` was its normal post-success shutdown.
+
+Committed release-validation workflows for `7ed19732d9034edf883bfc06a649a607b05a0103` also passed:
+
+- Validate Flowboard `30779765774`: success;
+- Deploy Flowboard to GitHub Pages `30779765823`: success.
+
+These results establish the automated layer only. They do not replace the separate production owner/editor/viewer/non-member direct-authorization matrix.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.
