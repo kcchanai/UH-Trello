@@ -38,6 +38,7 @@ export function createFirebaseWorkspaceAdapter(config) {
     async listActivity(workspaceId, options) { return (await cloud()).listWorkspaceActivity(app, auth, workspaceId, options); },
     async subscribeComments(options) { return (await cloud()).subscribeCardComments(app, auth, options); },
     async listOlderComments(options) { return (await cloud()).listOlderCardComments(app, auth, options); },
+    async probeCommentQueryAuthorization(options) { return (await cloud()).probeCommentQueryAuthorization(app, auth, options); },
     async createComment(options) { return (await cloud()).createCardComment(app, auth, options); },
     async updateComment(options) { return (await cloud()).updateCardComment(app, auth, options); },
     async removeComment(options) { return (await cloud()).removeCardComment(app, auth, options); },

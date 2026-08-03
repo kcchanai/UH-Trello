@@ -69,6 +69,20 @@ export async function listOlderCardComments(app, auth, {workspaceId, boardId, ca
   return {entries:snapshot.docs.map(item => ({id:item.id, ...item.data()})), cursor:snapshot.docs.at(-1) || null, hasMore:snapshot.size === safeSize};
 }
 
+export async function probeCommentQueryAuthorization(app, auth, {workspaceId, boardId, cardId}) {
+  const db = getFirestore(app); requireUser(auth);
+  const comments = collection(db, 'workspaces', workspaceId, 'boards', boardId, 'cards', cardId, 'comments');
+  const classify = async reference => {
+    try { await getDocs(reference); return 'allowed'; }
+    catch (error) { return String(error?.code || 'unknown'); }
+  };
+  return Object.freeze({
+    bounded:await classify(query(comments, orderBy('createdAt', 'desc'), limit(25))),
+    overLimit:await classify(query(comments, orderBy('createdAt', 'desc'), limit(26))),
+    unbounded:await classify(query(comments, orderBy('createdAt', 'desc')))
+  });
+}
+
 const commentRefs = (db, workspaceId, boardId, cardId, commentId, mutationId) => ({
   comment:doc(db, 'workspaces', workspaceId, 'boards', boardId, 'cards', cardId, 'comments', commentId),
   activity:doc(db, 'workspaces', workspaceId, 'activity', mutationId)

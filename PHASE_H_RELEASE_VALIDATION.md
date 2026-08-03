@@ -116,6 +116,25 @@ Recorded result:
 
 This establishes fail-closed behavior for forged workspace and nested comment-parent identifiers. Raw query bounds, hard-delete denial, ownership/former-owner boundaries, revocation, and remaining Phase H checks are still pending.
 
+### Anonymous direct REST boundary - PASS - 2026-08-02
+
+Tested with `FLOWBOARD_ANONYMOUS=YES` against the valid dedicated production test workspace, board, and card. No bearer token or authenticated browser session was supplied.
+
+Recorded result:
+
+- workspace read: denied with HTTP 403;
+- board read: denied with HTTP 403;
+- card read: denied with HTTP 403;
+- bounded comment collection read with page size 25: denied with HTTP 403;
+- over-limit comment collection read with page size 26: denied with HTTP 403;
+- unbounded comment collection read: denied with HTTP 403;
+- stale direct card write: denied with HTTP 403;
+- malformed direct comment write: denied with HTTP 403;
+- probe result: 8 of 8 passed;
+- output target remained redacted and no configuration value, token, account identity, UID, production document ID, response body, or full error object was retained.
+
+This establishes anonymous production denial for direct reads and writes. Because all anonymous reads are denied regardless of query shape, authenticated member evidence is still required to distinguish `limit(25)` allow from `limit(26)` and unbounded denial.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.
@@ -217,7 +236,23 @@ When selecting a cross-author target after creating and soft-removing a test com
 
 Cross-workspace and malformed-ID probes use a different known workspace ID and deliberately forged board/card IDs. Do not use an administrator console write as evidence because administrator access bypasses Security Rules.
 
-The browser SDK path does not test an unbounded or over-limit query because the client normalizes its page size. Use the local-only REST probe for that Rules-specific check and never place its bearer token in chat, files, or logs.
+The browser SDK path includes a read-only `probeCommentQueryAuthorization` diagnostic for the query-shape gate. It returns classifications only and never returns comment documents:
+
+```js
+await FlowboardRuntime.cloudAdapter.probeCommentQueryAuthorization(H)
+```
+
+Expected authenticated member result:
+
+```text
+bounded: allowed
+overLimit: permission-denied
+unbounded: permission-denied
+```
+
+This proves the production Rules distinguish an explicit limit of 25 from a limit of 26 and a missing limit without copying a bearer token.
+
+The local-only REST probe remains available for independent raw HTTP status checks. Never place its bearer token in chat, files, shell history, or logs.
 
 ## Required production matrix
 
