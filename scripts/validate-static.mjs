@@ -1,8 +1,8 @@
 import {readFile} from 'node:fs/promises';
 
-const [html, app, core, main, localAdapter, firebaseAdapter, cloudAdapter, authUI, cloudUI, inviteUI, membersUI, cloudSync, activityUI, assignmentUI, commentsUI] = await Promise.all([
+const [html, app, core, main, localAdapter, firebaseAdapter, cloudAdapter, phaseHProbes, authUI, cloudUI, inviteUI, membersUI, cloudSync, activityUI, assignmentUI, commentsUI] = await Promise.all([
   'index.html', 'app.js', 'state-core.js', 'src/main.js', 'src/adapters/local-workspace-adapter.js',
-  'src/adapters/firebase-workspace-adapter.js', 'src/adapters/firebase-cloud-workspace.js',
+  'src/adapters/firebase-workspace-adapter.js', 'src/adapters/firebase-cloud-workspace.js', 'src/adapters/firebase-phase-h-probes.js',
   'src/auth-ui.js', 'src/cloud-workspace-ui.js', 'src/invite-ui.js', 'src/members-ui.js', 'src/cloud-sync-controller.js', 'src/activity-ui.js', 'src/assignment-ui.js', 'src/comments-ui.js'
 ].map(file => readFile(file, 'utf8')));
 
@@ -37,6 +37,7 @@ if (!html.includes('cloud-activity-dialog') || !activityUI.includes('listActivit
 if (!html.includes('cloud-assignees-field') || !app.includes('assigneeUids') || !assignmentUI.includes('listMembers') || !assignmentUI.includes('checked.length>8') || !assignmentUI.includes('text.textContent')) throw new Error('Member-backed cloud assignment controls are incomplete or unsafe.');
 if (!html.includes('cloud-comments-section') || !firebaseAdapter.includes('subscribeComments') || !cloudAdapter.includes("limit(safeSize)") || !commentsUI.includes('pageSize:25') || !commentsUI.includes('textContent') || !commentsUI.includes('MutationObserver') || !commentsUI.includes('member.emailLower')) throw new Error('Authenticated card comments are incomplete, unsafe, not active-card scoped, or missing active-member label fallback.');
 if (!firebaseAdapter.includes('probeCommentQueryAuthorization') || !cloudAdapter.includes("limit(26)") || !cloudAdapter.includes("unbounded:await classify")) throw new Error('Phase H authenticated comment query-bound probe is incomplete.');
+if (!firebaseAdapter.includes('firebase-phase-h-probes.js') || !phaseHProbes.includes("['workspace', 'workspaces']") || !phaseHProbes.includes('deleteDoc(doc(db, ...path, crypto.randomUUID()))')) throw new Error('Phase H random-ID hard-delete probe is incomplete or unsafe.');
 if (!app.includes("Archive this cloud card?") || !app.includes("Cloud lists cannot be permanently deleted") || !app.includes("Cloud workspaces cannot be reset") || !app.includes("Cloud workspaces cannot be replaced or merged through import")) throw new Error('Cloud retention lifecycle must archive cards and block parent hard deletion paths.');
 const cloudSources = [firebaseAdapter, cloudAdapter, cloudSync, main].join('\n');
 if (/enableIndexedDbPersistence|persistentLocalCache|persistentMultipleTabManager|CACHE_SIZE_UNLIMITED/.test(cloudSources)) throw new Error('Persistent Firestore caching is approval-gated and must remain disabled.');

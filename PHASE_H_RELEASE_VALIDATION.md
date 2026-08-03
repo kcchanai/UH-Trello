@@ -151,6 +151,25 @@ A trailing browser-console message stated that an asynchronous listener returned
 
 This closes the authenticated comment query-shape boundary. Hard-delete denial, ownership/former-owner boundaries, revocation, offline/local isolation, and remaining Phase H release checks are still pending.
 
+### Ownership transfer and former-owner boundary - PASS - 2026-08-02
+
+Tested against the dedicated Phase H workspace using the established owner and editor accounts.
+
+Recorded result:
+
+- ownership transferred from the original owner to the existing editor through the production application;
+- the successor account obtained owner access;
+- the former owner retained editor membership but a direct invitation-list read was denied with `permission-denied`;
+- the former owner's direct invitation-create attempt was denied with `permission-denied`;
+- probe sentinel: `FORMER OWNER DIRECT PASS`;
+- the temporary owner transferred ownership back to the original owner;
+- the original owner was restored to owner and the temporary owner was restored to editor;
+- restoration sentinel: `OWNERSHIP RESTORED PASS`;
+- the cloud test workspace and browser-local workspaces remained intact;
+- no account identity, email, UID, invitation value, workspace ID, response body, or full error object was retained.
+
+This establishes the production ownership-transfer invariant and removal of owner-only access from a former owner. Hard-delete denial, revocation, offline/local isolation, and remaining Phase H release checks are still pending.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.
@@ -267,6 +286,8 @@ unbounded: permission-denied
 ```
 
 This proves the production Rules distinguish an explicit limit of 25 from a limit of 26 and a missing limit without copying a bearer token.
+
+The browser SDK also includes `probeHardDeleteAuthorization`. It generates cryptographically random nonexistent document IDs internally and attempts deletion at the workspace, board, list, card, comment, invitation, and activity paths. It never accepts a real child document ID and returns authorization classifications only. Every classification must be `permission-denied`. Because all targets are nonexistent, an unexpectedly allowed operation cannot delete production data.
 
 The local-only REST probe remains available for independent raw HTTP status checks. Never place its bearer token in chat, files, shell history, or logs.
 
