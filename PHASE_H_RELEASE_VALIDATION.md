@@ -70,6 +70,21 @@ The first cross-author probe selected the editor's newly soft-removed comment wh
 
 This establishes the editor positive and cross-author comment boundaries. Viewer denial, non-member denial, cross-workspace isolation, raw query bounds, revocation, and remaining Phase H checks are still pending.
 
+### Viewer direct SDK read/write boundary - PASS - 2026-08-02
+
+Tested against the deployed Phase H client from an authenticated viewer browser session through `FlowboardRuntime.cloudAdapter`, bypassing comment UI controls.
+
+Recorded result:
+
+- bounded direct comment collection read with page size 25: allowed;
+- direct comment creation: denied with production authorization;
+- direct active-comment edit: denied with production authorization;
+- direct active-comment soft removal: denied with production authorization;
+- final viewer probe result: pass;
+- no Firebase configuration value, token, UID, workspace ID, board ID, card ID, comment ID, mutation ID, response body, or full error object was retained in this record.
+
+This establishes the viewer direct comment boundary. Non-member denial, cross-workspace isolation, raw query bounds, revocation, and remaining Phase H checks are still pending.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.
