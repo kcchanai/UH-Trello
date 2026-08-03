@@ -189,6 +189,23 @@ Recorded result:
 
 This closes the production hard-delete boundary. Revocation, offline/local isolation, and remaining Phase H release checks are still pending.
 
+### Revocation/offline attempt 1 - PARTIAL PASS, CLIENT LIFECYCLE FIX REQUIRED - 2026-08-02
+
+The editor opened the dedicated cloud test card, preserved a browser-local workspace fingerprint, took only that browser offline, and queued a real comment `writeBatch`. The owner then removed the editor while the editor remained offline. On reconnect:
+
+- queued offline write rejection: PASS with `permission-denied`;
+- direct post-revocation workspace read denial: PASS with `permission-denied`;
+- direct post-revocation comment write denial: PASS with `permission-denied`;
+- browser-local workspace isolation: PASS, unchanged;
+- automatic listener shutdown and return to local mode: FAIL;
+- reported sentinel: `REVOCATION OFFLINE FAIL Revocation checks failed: listenerShutdown`.
+
+This proves deployed Rules enforced revocation for queued and direct operations, but the application remained in cached cloud mode because it depended only on listener error delivery after reconnect. Phase H remains blocked on this client lifecycle failure.
+
+Corrective control: the cloud adapter now exposes a server-backed `verifyWorkspaceAccess` membership read, and the sync controller performs that preflight on the browser `online` event before restarting listeners. A missing or denied membership triggers the existing access-removal path, stops subscriptions, reloads browser-local state, and clears cloud mode. A regression test reproduces removal while offline and requires access removal on reconnect.
+
+Production retest is required after deployment. No editor membership should be restored until the corrected client is deployed.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.

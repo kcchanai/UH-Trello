@@ -4,7 +4,7 @@ import {initializeCloudSyncController} from '../src/cloud-sync-controller.js';
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-function harness() {
+function harness({verifyWorkspaceAccess = async () => 'editor'} = {}) {
   const events = new EventTarget();
   globalThis.window = events;
   Object.defineProperty(globalThis, 'navigator', {value:{onLine:true}, configurable:true});
@@ -17,7 +17,7 @@ function harness() {
     updateCloudRole:role => calls.roles.push(role),
     handleCloudAccessRemoved:message => calls.removed.push(message)
   };
-  const adapter = {async subscribeWorkspace(options) { calls.subscriptions.push(options); return () => { calls.unsubscribed += 1; }; }};
+  const adapter = {verifyWorkspaceAccess, async subscribeWorkspace(options) { calls.subscriptions.push(options); return () => { calls.unsubscribed += 1; }; }};
   const controller = initializeCloudSyncController(adapter);
   return {calls, controller, setMode:value => { mode = value; }, setBoard:value => { boardId = value; }, events};
 }
@@ -55,4 +55,21 @@ test('cloud sync reports offline state and clears cloud mode on sign-out', async
   h.controller.setSession(null);
   assert.equal(h.calls.unsubscribed, 1);
   assert.match(h.calls.removed.at(-1), /Signed out/);
+});
+
+test('cloud sync verifies membership on reconnect and clears revoked cloud mode', async () => {
+  let revoked = false;
+  const h = harness({verifyWorkspaceAccess:async () => {
+    if (revoked) throw Object.assign(new Error('denied'), {code:'permission-denied'});
+    return 'editor';
+  }});
+  h.setMode({kind:'cloud', id:'workspace-a', role:'editor'});
+  h.controller.setSession({uid:'member-a'});
+  await tick();
+  assert.equal(h.calls.subscriptions.length, 1);
+  revoked = true;
+  h.events.dispatchEvent(new Event('online'));
+  await tick();
+  assert.equal(h.calls.unsubscribed, 1);
+  assert.match(h.calls.removed.at(-1), /access was removed/i);
 });

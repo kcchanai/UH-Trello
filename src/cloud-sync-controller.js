@@ -7,7 +7,7 @@ export function initializeCloudSyncController(adapter) {
   const status = (name, message = '') => app()?.setCloudSyncStatus(name, message);
   const accessRemoved = message => { stop(); app()?.handleCloudAccessRemoved(message || 'Cloud workspace access was removed. Your browser-local workspace was not affected.'); };
 
-  async function start() {
+  async function start(verifyAccess = false) {
     stop();
     const mode = app()?.getMode();
     const boardId = app()?.getActiveBoardId();
@@ -15,6 +15,8 @@ export function initializeCloudSyncController(adapter) {
     const current = generation;
     status(navigator.onLine ? 'Connecting' : 'Offline');
     try {
+      if (verifyAccess) await adapter.verifyWorkspaceAccess(mode.id);
+      if (current !== generation) return;
       const next = await adapter.subscribeWorkspace({
         workspaceId:mode.id,
         boardId,
@@ -35,10 +37,10 @@ export function initializeCloudSyncController(adapter) {
     }
   }
 
-  window.addEventListener('flowboard:cloud-preview-change', start);
-  window.addEventListener('flowboard:active-board-change', start);
+  window.addEventListener('flowboard:cloud-preview-change', () => start());
+  window.addEventListener('flowboard:active-board-change', () => start());
   window.addEventListener('offline', () => status('Offline'));
-  window.addEventListener('online', start);
+  window.addEventListener('online', () => start(true));
 
   return Object.freeze({
     setSession(next) {

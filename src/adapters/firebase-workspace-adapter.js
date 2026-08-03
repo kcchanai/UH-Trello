@@ -32,6 +32,7 @@ export function createFirebaseWorkspaceAdapter(config) {
     onAuthStateChange(callback) { return onAuthStateChanged(auth, user => callback(sessionFor(user))); },
     async signInWithGoogle() { await persistenceReady; return sessionFor((await signInWithPopup(auth, provider)).user); },
     async signOut() { await firebaseSignOut(auth); },
+    async verifyWorkspaceAccess(workspaceId) { return (await cloud()).verifyWorkspaceAccess(app, auth, workspaceId); },
     async listWorkspaces() { return (await cloud()).listCloudWorkspaces(app, auth); },
     async fetchWorkspace(workspaceId) { return (await cloud()).fetchCloudWorkspace(app, auth, workspaceId); },
     async subscribeWorkspace(options) { return (await cloud()).subscribeCloudWorkspace(app, auth, options); },

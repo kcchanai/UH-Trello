@@ -142,6 +142,13 @@ export function subscribeCloudWorkspace(app, auth, {workspaceId, boardId, onBoar
   return stop;
 }
 
+export async function verifyWorkspaceAccess(app, auth, workspaceId) {
+  const db = getFirestore(app), user = requireUser(auth);
+  const membership = await getDoc(doc(db, 'workspaces', workspaceId, 'members', user.uid));
+  if (!membership.exists()) throw Object.assign(new Error('Workspace access was removed.'), {code:'ACCESS_REMOVED'});
+  return membership.data().role;
+}
+
 export async function migrateWorkspaceToGranular(app, auth, workspaceId) {
   const db = getFirestore(app), user = requireUser(auth), workspaceRef = doc(db, 'workspaces', workspaceId);
   const workspaceSnapshot = await getDoc(workspaceRef);
