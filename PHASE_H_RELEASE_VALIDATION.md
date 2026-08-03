@@ -101,6 +101,21 @@ Recorded result:
 
 Because this used a real valid workspace against an identity outside that workspace, it establishes valid-workspace isolation for the non-member role. Forged identifiers, raw query bounds, revocation, and remaining Phase H checks are still pending.
 
+### Forged workspace and nested parent identifiers - PASS - 2026-08-02
+
+Tested from an authenticated owner session with cryptographically random, nonexistent workspace, board, and card identifiers through `FlowboardRuntime.cloudAdapter`.
+
+Recorded result:
+
+- forged workspace reconstruction/read: denied;
+- forged workspace activity read: denied;
+- valid-workspace comment read through forged board/card parents: denied;
+- valid-workspace comment creation through forged board/card parents: denied;
+- final forged-identifier probe result: pass;
+- no Firebase configuration value, token, account identity, UID, production document ID, forged identifier, response body, or full error object was retained in this record.
+
+This establishes fail-closed behavior for forged workspace and nested comment-parent identifiers. Raw query bounds, hard-delete denial, ownership/former-owner boundaries, revocation, and remaining Phase H checks are still pending.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.
