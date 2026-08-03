@@ -170,6 +170,25 @@ Recorded result:
 
 This establishes the production ownership-transfer invariant and removal of owner-only access from a former owner. Hard-delete denial, revocation, offline/local isolation, and remaining Phase H release checks are still pending.
 
+### Hard-delete denial - PASS - 2026-08-02
+
+Tested from the restored owner session through the deployed `probeHardDeleteAuthorization` diagnostic. The diagnostic generated cryptographically random nonexistent document IDs internally and accepted only the valid parent scope needed to reach nested Rules paths.
+
+Recorded result:
+
+- workspace hard delete: denied with `permission-denied`;
+- board hard delete: denied with `permission-denied`;
+- list hard delete: denied with `permission-denied`;
+- card hard delete: denied with `permission-denied`;
+- comment hard delete: denied with `permission-denied`;
+- invitation hard delete: denied with `permission-denied`;
+- activity hard delete: denied with `permission-denied`;
+- probe sentinel: `HARD DELETE DENIAL 7/7 PASS`;
+- no existing record was targeted or deleted;
+- no account identity, UID, production child document ID, response body, or full error object was retained.
+
+This closes the production hard-delete boundary. Revocation, offline/local isolation, and remaining Phase H release checks are still pending.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.
