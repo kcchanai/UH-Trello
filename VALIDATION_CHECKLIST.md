@@ -60,29 +60,29 @@ Run these checks before publishing a Flowboard change.
 
 ## Phase H production release and privacy
 
-- [ ] Run `scripts/phase-h-direct-access.mjs` locally with a dedicated test workspace for owner, editor, viewer, and non-member tokens; keep tokens out of files, chat, and logs.
-- [ ] Record direct workspace/board/card/comment/activity reads and cross-workspace denial.
-- [ ] Record direct viewer/non-member write denial and malformed/forged-ID denial.
-- [ ] Verify hard deletion of cloud parents and comments is denied; verify card archive and comment soft-removal retention.
-- [ ] Verify revocation during an active card session stops listeners and subsequent direct reads/writes.
-- [ ] Verify conflict, offline/reconnect, sign-out, and local restoration behavior.
-- [ ] Document Firebase/Google identity use, membership visibility, exports, retention, leave/removal, deletion restrictions, redacted diagnostics, and the UH/institutional-data boundary.
-- [ ] Recheck Firebase Spark pricing, quotas, terms, and hawaii.edu organization policy before beta.
-- [ ] Record the published Firestore Rules revision and exact source commit.
+- [x] Run sanitized direct probes from authenticated browser sessions plus the anonymous REST harness; never copy or retain tokens, credentials, emails, UIDs, opaque document identifiers, or full payloads.
+- [x] Record direct workspace/board/card/comment/activity reads and cross-workspace denial.
+- [x] Record direct viewer/non-member write denial and malformed/forged-ID denial.
+- [x] Verify hard deletion of cloud parents and comments is denied; verify card archive and comment soft-removal retention.
+- [x] Verify revocation during an active card session stops listeners and subsequent direct reads/writes.
+- [x] Verify conflict, offline/reconnect, sign-out, and local restoration behavior.
+- [x] Document Firebase/Google identity use, membership visibility, exports, retention, leave/removal, deletion restrictions, redacted diagnostics, and the UH/institutional-data boundary.
+- [x] Recheck Firebase Spark pricing, quotas, terms, and hawaii.edu organization policy before beta.
+- [x] Record the manually published production Rules source revision and exact source commit.
 
 ## Visual and accessibility checks
 
-- [ ] Inspect at desktop width, 700 px, 440 px, and 320 px.
-- [ ] Verify board lanes intentionally scroll horizontally without clipping controls.
-- [ ] Toggle the theme and inspect contrast, panel separation, and readable text.
-- [ ] Tab through the skip link, top-bar controls, board title, list controls, cards, and dialogs; focus is always visible.
-- [ ] Use only keyboard controls for text entry, menu opening (Arrow keys/Home/End/Escape), search clear, card opening, Alt+Arrow card movement, and dialog confirmation/cancellation.
-- [ ] Verify card buttons announce title, list, and position; verify save/add/move/archive/delete/filter/undo outcomes reach the polite live region.
-- [ ] Open every dialog, verify the first useful control receives focus, press Escape, and confirm focus returns to the initiating control.
-- [ ] Test at 200% zoom and 320 px width: no control is lost and only the intentional board lane scrolls horizontally.
-- [ ] Enable forced colors/high contrast and reduced motion; verify borders/focus remain legible and no disruptive animation remains.
-- [ ] Run `npx --yes lighthouse http://127.0.0.1:4173/ --only-categories=accessibility --chrome-flags='--headless --no-sandbox'` against a local `python -m http.server 4173`; require score 1 and no failed audits.
-- [ ] Confirm each visible control has an actual behavior or is omitted.
+- [x] Inspect at desktop width, 700 px, 440 px, and 320 px.
+- [x] Verify board lanes intentionally scroll horizontally without clipping controls.
+- [x] Toggle the theme and inspect contrast, panel separation, and readable text.
+- [x] Tab through the skip link, top-bar controls, board title, list controls, cards, and dialogs; focus is always visible.
+- [x] Use only keyboard controls for text entry, menu opening (Arrow keys/Home/End/Escape), search clear, card opening, Alt+Arrow card movement, and dialog confirmation/cancellation.
+- [x] Verify card buttons announce title, list, and position; verify save/add/move/archive/delete/filter/undo outcomes reach the polite live region.
+- [x] Open every dialog, verify the first useful control receives focus, press Escape, and confirm focus returns to the initiating control.
+- [x] Test at 200% zoom and 320 px width: no control is lost and only the intentional board lane scrolls horizontally.
+- [x] Enable forced colors/high contrast and reduced motion; verify borders/focus remain legible and no disruptive animation remains.
+- [x] Run Lighthouse against the built release; require accessibility score 1 and no failed audits.
+- [x] Confirm each visible control has an actual behavior or is omitted.
 
 ## Release checks
 

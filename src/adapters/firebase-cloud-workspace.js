@@ -221,23 +221,23 @@ export async function applyCloudWorkspaceMutation(app, auth, {workspaceId, befor
   if (!allowedActivityActions.includes(activityAction)) throw Object.assign(new Error('The cloud activity request is invalid.'), {code:'INVALID_MUTATION'});
   const activityRef = doc(db, 'workspaces', workspaceId, 'activity', clientMutationId);
   await runTransaction(db, async transaction => {
-    const priorActivity = await transaction.get(activityRef);
-    if (priorActivity.exists() && priorActivity.data().clientMutationId !== clientMutationId) throw Object.assign(new Error('The activity identifier is unavailable.'), {code:'ACTIVITY_IDENTIFIER_CONFLICT'});
-    for (const path of paths) {
-      const prior = previous.get(path), target = desired.get(path), ref = doc(db, 'workspaces', workspaceId, ...path.split('/'));
-      const current = await transaction.get(ref), expectedRevision = prior?.data.revision ?? 0;
-      if (target && current.exists() && current.data().clientMutationId === clientMutationId && (current.data().revision ?? 0) === expectedRevision + 1) continue;
-      if (!current.exists() && prior) throw Object.assign(new Error('This cloud item no longer exists.'), {code:'REVISION_CONFLICT'});
-      if (current.exists() && (current.data().revision ?? 0) !== expectedRevision) throw Object.assign(new Error('This cloud workspace changed elsewhere. Reload before retrying.'), {code:'REVISION_CONFLICT'});
-      if (!target) transaction.delete(ref);
-      else {
-        const data = {...target.data};
-        delete data.revision; delete data.clientMutationId; delete data.updatedAt;
-        if (current.exists()) { delete data.createdAt; transaction.update(ref, {...data, revision:expectedRevision + 1, clientMutationId, updatedAt:serverTimestamp()}); }
-        else transaction.set(ref, {...data, revision:0, clientMutationId, updatedAt:serverTimestamp()});
-      }
-    }
-    if (!priorActivity.exists()) transaction.set(activityRef, {actorUid:user.uid, action:activityAction, boardId:next.activeBoardId || '', clientMutationId, createdAt:serverTimestamp()});
+    const ops = paths.map(path => ({prior:previous.get(path), target:desired.get(path), ref:doc(db, 'workspaces', workspaceId, ...path.split('/'))}));
+    const activity = await transaction.get(activityRef);
+    const docs = await Promise.all(ops.map(item => transaction.get(item.ref)));
+    if (activity.exists() && activity.data().clientMutationId !== clientMutationId) throw Object.assign(new Error('The activity identifier is unavailable.'), {code:'ACTIVITY_IDENTIFIER_CONFLICT'});
+    const writes = ops.map((item, index) => {
+      const {prior, target, ref} = item, cur = docs[index], rev = prior?.data.revision ?? 0;
+      if (target && cur.exists() && cur.data().clientMutationId === clientMutationId && (cur.data().revision ?? 0) === rev + 1) return null;
+      if (!cur.exists() && prior) throw Object.assign(new Error('This cloud item no longer exists.'), {code:'REVISION_CONFLICT'});
+      if (cur.exists() && (cur.data().revision ?? 0) !== rev) throw Object.assign(new Error('This cloud workspace changed elsewhere. Reload before retrying.'), {code:'REVISION_CONFLICT'});
+      if (!target) return {kind:'delete', ref};
+      const data = {...target.data};
+      delete data.revision; delete data.clientMutationId; delete data.updatedAt;
+      if (cur.exists()) { delete data.createdAt; return {kind:'update', ref, data:{...data, revision:rev + 1, clientMutationId, updatedAt:serverTimestamp()}}; }
+      return {kind:'set', ref, data:{...data, revision:0, clientMutationId, updatedAt:serverTimestamp()}};
+    });
+    writes.forEach(write => { if (!write) return; if (write.kind === 'delete') transaction.delete(write.ref); else if (write.kind === 'update') transaction.update(write.ref, write.data); else transaction.set(write.ref, write.data); });
+    if (!activity.exists()) transaction.set(activityRef, {actorUid:user.uid, action:activityAction, boardId:next.activeBoardId || '', clientMutationId, createdAt:serverTimestamp()});
   });
   return fetchCloudWorkspace(app, auth, workspaceId);
 }

@@ -38,6 +38,12 @@ if (!html.includes('cloud-assignees-field') || !app.includes('assigneeUids') || 
 if (!html.includes('cloud-comments-section') || !firebaseAdapter.includes('subscribeComments') || !cloudAdapter.includes("limit(safeSize)") || !commentsUI.includes('pageSize:25') || !commentsUI.includes('textContent') || !commentsUI.includes('MutationObserver') || !commentsUI.includes('member.emailLower')) throw new Error('Authenticated card comments are incomplete, unsafe, not active-card scoped, or missing active-member label fallback.');
 if (!firebaseAdapter.includes('probeCommentQueryAuthorization') || !cloudAdapter.includes("limit(26)") || !cloudAdapter.includes("unbounded:await classify")) throw new Error('Phase H authenticated comment query-bound probe is incomplete.');
 if (!firebaseAdapter.includes('firebase-phase-h-probes.js') || !phaseHProbes.includes("['workspace', 'workspaces']") || !phaseHProbes.includes('deleteDoc(doc(db, ...path, crypto.randomUUID()))')) throw new Error('Phase H random-ID hard-delete probe is incomplete or unsafe.');
+const workspaceMutationStart = cloudAdapter.indexOf('export async function applyCloudWorkspaceMutation');
+const workspaceMutationEnd = cloudAdapter.indexOf('\nexport async function uploadLocalWorkspace', workspaceMutationStart);
+const workspaceMutation = cloudAdapter.slice(workspaceMutationStart, workspaceMutationEnd);
+const readPhase = workspaceMutation.indexOf('await Promise.all(ops.map(item => transaction.get(item.ref)))');
+const writePhase = workspaceMutation.indexOf('writes.forEach(write =>');
+if (workspaceMutationStart < 0 || workspaceMutationEnd < 0 || readPhase < 0 || writePhase < 0 || readPhase > writePhase || workspaceMutation.slice(writePhase).includes('transaction.get(')) throw new Error('Workspace transactions must complete every document read before the write phase.');
 if (!app.includes("Archive this cloud card?") || !app.includes("Cloud lists cannot be permanently deleted") || !app.includes("Cloud workspaces cannot be reset") || !app.includes("Cloud workspaces cannot be replaced or merged through import")) throw new Error('Cloud retention lifecycle must archive cards and block parent hard deletion paths.');
 const cloudSources = [firebaseAdapter, cloudAdapter, cloudSync, main].join('\n');
 if (/enableIndexedDbPersistence|persistentLocalCache|persistentMultipleTabManager|CACHE_SIZE_UNLIMITED/.test(cloudSources)) throw new Error('Persistent Firestore caching is approval-gated and must remain disabled.');

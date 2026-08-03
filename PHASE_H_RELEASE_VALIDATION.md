@@ -394,14 +394,95 @@ Record only pass/fail, timestamp, account role, workspace/card test identifiers,
 5. Return to local mode and confirm the browser-local workspace is intact and unchanged.
 6. Reinvite or restore the role only through the supported owner workflow when the test is complete.
 
+## Conflict and two-browser convergence evidence - PASS - 2026-08-02
+
+Same-card stale-revision production test:
+
+```text
+OWNER CONFLICT PREP PASS
+EDITOR CONFLICT PREP PASS
+OWNER CONFLICT WINNER PASS
+EDITOR STALE CONFLICT PASS
+CONFLICT RESTORE PASS
+```
+
+The owner committed revision N+1. The editor then submitted the prepared revision N against the same card and received the client classification `REVISION_CONFLICT`. A server-backed fetch confirmed the stale value did not overwrite the owner's accepted value or revision. The owner restored the dedicated fixture through revision N+2.
+
+Different-card production test through the supported card UI:
+
+```text
+SECOND CONVERGENCE FIXTURE PASS
+EDITOR TWO-FIXTURE LISTENER PASS
+OWNER UI EDIT PASS
+EDITOR UI EDIT PASS
+TWO-BROWSER CONVERGENCE PASS
+CONVERGENCE RESTORE PASS
+CONVERGENCE CLEANUP PASS
+EDITOR CLEANUP LISTENER PASS
+```
+
+Two fresh cards were created through the supported UI. Their creation converged to the editor listener without refresh. The owner and editor then edited different cards through **Save changes**. Both browsers displayed both accepted titles without refresh and reported `Synced`. Both fixture titles were restored, the owner archived both temporary cards rather than attempting prohibited hard deletion, and the editor listener removed both from the active board without refresh.
+
+Failed direct-probe attempts are retained separately and are not relabelled as passes:
+
+```text
+OWNER DIFFERENT-CARD EDIT FAIL permission-denied
+```
+
+The failed direct operation expected an allow, so `permission-denied` is a failed probe result. It targeted an automatically selected older migrated card whose raw rehydrated record lacked an integer revision. Subsequent fixture-selection attempts made no writes. The supported UI acceptance used two new dedicated fixtures and passed; it does not claim that the failed low-level operation was rerun against the same card or payload.
+
+No credential, email, UID, opaque document identifier, card content beyond fixed Phase H sentinel titles, full error object, or listener payload was retained.
+
+### Concurrent card-move attempt 1 - FAIL, CLIENT FIX REQUIRED - 2026-08-02
+
+Two restored disposable cards were opened in separate owner and editor sessions. The editor move succeeded, but the owner move did not converge. A focused dispatch through the same supported `Alt+ArrowRight` UI handler exposed the client error:
+
+```text
+OWNER KEYBOARD EVENT MOVE FAIL
+Firestore transactions require all reads to be executed before all writes.
+```
+
+The failed move did not change or duplicate the owner fixture. Inspection found that `applyCloudWorkspaceMutation` read each changed document and then immediately wrote it before reading the next changed document. A move that affected multiple card records therefore violated the Firestore transaction requirement that every read precede the first write.
+
+The client fix prepares all affected references, reads every current snapshot with `Promise.all`, validates all revisions, and only then applies writes. Static validation now rejects any `transaction.get()` in the workspace-mutation write phase. Production acceptance remains open until this corrected client is deployed and the two-session move is rerun.
+
+## Sign-out lifecycle evidence - PASS - 2026-08-02
+
+The editor kept a cloud card open and preserved a serialized browser-local workspace fingerprint before invoking the same adapter sign-out transition used by the account UI.
+
+Initial result:
+
+```text
+SIGNOUT PREP PASS
+SIGNOUT LIFECYCLE FAIL Sign-out checks failed: localStatus
+```
+
+Five substantive checks passed in that attempt: the Firebase session became null, cloud listeners were stopped through the auth-state callback, the application returned to local mode, the open cloud dialog closed, and the serialized local workspace was unchanged. The only failure was an incorrect probe expectation. The probe expected the transient authentication text `Google sign-in available`, but the application local-mode render intentionally replaces it with `Cloud setup detected`.
+
+Corrected status-only retest:
+
+```text
+SIGNOUT STATUS RETEST 2/2 PASS
+```
+
+The retest confirmed local mode and the intended final local status. The initial partial failure remains in this record and is not rewritten as a full first-attempt pass.
+
+Final restoration:
+
+```text
+EDITOR SIGNIN RESTORE 4/4 PASS
+```
+
+The editor signed back in, reopened the supported cloud workspace, returned to cloud mode with the `editor` role, and retained the same serialized browser-local workspace fingerprint.
+
 ## Offline, conflict, and local isolation
 
-- Use two browser sessions on different cards and verify convergence.
-- Edit the same card from both sessions with a stale revision. Confirm conflict handling and no silent overwrite.
-- Disconnect one browser before a mutation. Confirm the UI does not claim `Synced` for an uncommitted write.
-- Reconnect and verify either authoritative convergence or an explicit rollback/conflict outcome.
-- Sign out while a cloud card is open. Confirm listeners stop and local data remains available.
-- No persistent Firestore disk cache or persistent offline mutation queue is permitted in this release. A transient memory-only SDK batch may wait for reconnect, must not be reported as synced, and remains subject to server Rules when sent.
+- [x] Use two browser sessions on different cards and verify convergence.
+- [x] Edit the same card from both sessions with a stale revision. Confirm conflict handling and no silent overwrite.
+- [x] Disconnect one browser before a mutation. Confirm the UI does not claim `Synced` for an uncommitted write.
+- [x] Reconnect and verify either authoritative convergence or an explicit rollback/conflict outcome.
+- [x] Sign out while a cloud card is open. Confirm listeners stop and local data remains available.
+- [x] No persistent Firestore disk cache or persistent offline mutation queue is permitted in this release. A transient memory-only SDK batch may wait for reconnect, must not be reported as synced, and remains subject to server Rules when sent.
 
 ## Privacy and lifecycle record
 
@@ -416,6 +497,16 @@ Before beta, document in user-facing policy copy or the release notes:
 - redaction of emails, tokens, invite IDs, comment bodies, and document contents from diagnostics;
 - the decision that institutional, FERPA-covered, employment, or other controlled data is not authorized without separate UH approval;
 - Firebase pricing, Spark quotas, terms, and hawaii.edu organization-policy review before beta.
+
+## Manual accessibility evidence - PASS - 2026-08-02
+
+Aaron completed the cache-busted production inspection and reported:
+
+```text
+FINAL ACCESSIBILITY MANUAL PASS
+```
+
+The manual pass covered 200% browser zoom, 320 px responsive presentation, intentional board-lane horizontal scrolling, reachable header and dialog controls, visible pointer-accessible dialog closure, keyboard focus, forced colors, and reduced motion. It supplements the committed browser checks at 1280, 700, 440, and 320 px and does not replace automated Lighthouse or keyboard checks.
 
 ## Product release checks
 
