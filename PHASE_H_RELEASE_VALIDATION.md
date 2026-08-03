@@ -62,6 +62,45 @@ Expected results for a member token:
 
 Run the probe with owner, editor, viewer, and non-member tokens. For the non-member, the member reads and collection read must be HTTP 403. A token must never be considered evidence of identity unless its Firebase Auth account is independently verified in the test record.
 
+## Direct Firestore SDK checks from a signed-in production browser
+
+The deployed app exposes the authenticated adapter object for its own runtime, but not the Firebase Auth token. These calls bypass the UI controls while retaining the signed-in browser session. Run them from that account's DevTools console and record only pass/fail and redacted error codes.
+
+First open the dedicated test card and capture opaque IDs locally:
+
+```js
+const H = {
+  workspaceId: FlowboardApp.getMode().id,
+  boardId: FlowboardApp.getActiveBoardId(),
+  cardId: document.querySelector('#card-dialog').dataset.cardId
+};
+H
+```
+
+Owner or editor direct positive comment lifecycle, using a dedicated test card:
+
+```js
+const commentId = await FlowboardRuntime.cloudAdapter.createComment({...H, body:'Phase H direct SDK owner/editor probe'});
+await FlowboardRuntime.cloudAdapter.updateComment({...H, commentId, revision:0, body:'Phase H direct SDK edited'});
+await FlowboardRuntime.cloudAdapter.removeComment({...H, commentId, revision:1});
+commentId
+```
+
+The final operation is soft removal. It must leave no active comment body and must create the matching privacy-minimal activity record.
+
+Viewer and non-member negative probes:
+
+```js
+await FlowboardRuntime.cloudAdapter.createComment({...H, body:'Phase H viewer write must fail'});
+await FlowboardRuntime.cloudAdapter.fetchWorkspace(H.workspaceId);
+```
+
+For a viewer, both calls must reject with permission denial. For a non-member, `fetchWorkspace` must reject. A viewer may also attempt `updateComment` and `removeComment` against a known test comment; both must reject.
+
+Cross-workspace and malformed-ID probes use a different known workspace ID and deliberately forged board/card IDs. Do not use an administrator console write as evidence because administrator access bypasses Security Rules.
+
+The browser SDK path does not test an unbounded or over-limit query because the client normalizes its page size. Use the local-only REST probe for that Rules-specific check and never place its bearer token in chat, files, or logs.
+
 ## Required production matrix
 
 Record only pass/fail, timestamp, account role, workspace/card test identifiers, HTTP status, and redacted error category.
