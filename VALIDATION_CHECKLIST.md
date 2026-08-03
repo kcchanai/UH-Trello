@@ -86,8 +86,8 @@ Run these checks before publishing a Flowboard change.
 
 ## Release checks
 
-- [ ] `node --check app.js`
-- [ ] `git diff --check`
-- [ ] `git status --short --branch` is clean after the commit/push.
-- [ ] Verify the remote `main` ref matches the intended commit.
-- [ ] Smoke-test https://kcchanai.github.io/UH-Trello/ after GitHub Pages completes.
+- [x] `node --check app.js`
+- [x] `git diff --check`
+- [x] `git status --short --branch` is clean after the commit/push.
+- [x] Verify the remote `main` ref matches the intended commit.
+- [x] Smoke-test https://kcchanai.github.io/UH-Trello/ after GitHub Pages completes.

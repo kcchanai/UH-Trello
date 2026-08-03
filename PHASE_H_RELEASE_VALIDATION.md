@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase H is in progress. G3 Rules publication and owner/editor/viewer UI acceptance are complete. The remaining release gate is direct Firestore authorization from separate production identities, followed by revocation, conflict/offline, privacy, accessibility, quota, and release evidence.
+Phase H is complete. Production authorization, privacy, revocation, stale-conflict, convergence, accessibility, quota, deployment, and archive-only cleanup evidence passed on 2026-08-02. G5 notifications remains deferred.
 
 Production project: `flowboard-504105`
 
@@ -444,7 +444,26 @@ Firestore transactions require all reads to be executed before all writes.
 
 The failed move did not change or duplicate the owner fixture. Inspection found that `applyCloudWorkspaceMutation` read each changed document and then immediately wrote it before reading the next changed document. A move that affected multiple card records therefore violated the Firestore transaction requirement that every read precede the first write.
 
-The client fix prepares all affected references, reads every current snapshot with `Promise.all`, validates all revisions, and only then applies writes. Static validation now rejects any `transaction.get()` in the workspace-mutation write phase. Production acceptance remains open until this corrected client is deployed and the two-session move is rerun.
+The client fix prepares all affected references, reads every current snapshot with `Promise.all`, validates all revisions, and only then applies writes. Static validation now rejects any `transaction.get()` in the workspace-mutation write phase.
+
+Corrected release `2fe0cb0` passed local application, static, production-build, performance, and diff checks. GitHub validation run `30800083052` then passed the Java-backed 21-test Firestore Rules suite, all seven browser checks, and automated accessibility. Pages deployment run `30800082527` succeeded, and the cache-busted live release opened with zero console errors.
+
+The same owner moved `Phase H convergence fixture` from list index 0 to list index 1 through the supported keyboard handler. The editor received the accepted move without refresh. Both sessions agreed on card-to-list placement, each fixture appeared exactly once, and no card was lost or duplicated:
+
+```text
+OWNER CARD MOVE FIX RETEST PASS
+EDITOR MOVE FIX LISTENER PASS
+TWO-BROWSER MOVE CONVERGENCE PASS
+NO DUPLICATE CARDS PASS
+```
+
+The owner then archived both disposable fixtures through the supported in-app lifecycle. The editor listener removed both from the active board without refresh, and no hard delete was attempted:
+
+```text
+MOVE FIXTURE CLEANUP PASS
+EDITOR MOVE CLEANUP LISTENER PASS
+NO ACTIVE MOVE FIXTURES PASS
+```
 
 ## Sign-out lifecycle evidence - PASS - 2026-08-02
 
