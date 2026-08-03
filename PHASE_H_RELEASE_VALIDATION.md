@@ -85,6 +85,22 @@ Recorded result:
 
 This establishes the viewer direct comment boundary. Non-member denial, cross-workspace isolation, raw query bounds, revocation, and remaining Phase H checks are still pending.
 
+### Non-member direct SDK read/write boundary - PASS - 2026-08-02
+
+Tested from an authenticated Firebase account with no membership in the valid production test workspace, using locally transferred opaque document identifiers and `FlowboardRuntime.cloudAdapter`.
+
+Recorded result:
+
+- direct workspace reconstruction/read: denied;
+- direct bounded comment collection read: denied;
+- direct workspace activity read: denied;
+- direct workspace member collection read: denied;
+- direct comment creation: denied;
+- final non-member probe result: pass;
+- no Firebase configuration value, token, account identity, UID, workspace ID, board ID, card ID, comment ID, mutation ID, response body, or full error object was retained in this record.
+
+Because this used a real valid workspace against an identity outside that workspace, it establishes valid-workspace isolation for the non-member role. Forged identifiers, raw query bounds, revocation, and remaining Phase H checks are still pending.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.
