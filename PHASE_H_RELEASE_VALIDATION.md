@@ -135,6 +135,22 @@ Recorded result:
 
 This establishes anonymous production denial for direct reads and writes. Because all anonymous reads are denied regardless of query shape, authenticated member evidence is still required to distinguish `limit(25)` allow from `limit(26)` and unbounded denial.
 
+### Authenticated comment query bounds - PASS - 2026-08-02
+
+Tested from a signed-in owner browser session through the deployed read-only `probeCommentQueryAuthorization` adapter diagnostic against the dedicated production test card.
+
+Recorded result:
+
+- explicit query limit 25: allowed;
+- explicit query limit 26: denied with `permission-denied`;
+- query with no explicit limit: denied with `permission-denied`;
+- probe sentinel: `AUTHENTICATED QUERY BOUNDS PASS`;
+- no token, account identity, UID, Firebase configuration value, production document ID, comment body, response body, or full error object was retained.
+
+A trailing browser-console message stated that an asynchronous listener returned true but its message channel closed before a response arrived. That is browser runtime/extension message-channel wording, not a Firestore Rules authorization result. It did not replace or invalidate the probe's explicit pass sentinel. Attribution can be confirmed through the console source/stack or an extension-free private/guest browser session.
+
+This closes the authenticated comment query-shape boundary. Hard-delete denial, ownership/former-owner boundaries, revocation, offline/local isolation, and remaining Phase H release checks are still pending.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.
