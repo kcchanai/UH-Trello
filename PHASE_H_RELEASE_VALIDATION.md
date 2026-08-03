@@ -36,6 +36,22 @@ Committed release-validation workflows for `7ed19732d9034edf883bfc06a649a607b05a
 
 These results establish the automated layer only. They do not replace the separate production owner/editor/viewer/non-member direct-authorization matrix.
 
+## Production direct-authorization evidence
+
+### Owner direct SDK lifecycle - PASS - 2026-08-02
+
+Tested against deployed release `df70d2ba52f60327f1ec931fb9abed0628acd96c` from an authenticated owner browser session through `FlowboardRuntime.cloudAdapter`, bypassing comment UI controls.
+
+Recorded result:
+
+- direct comment creation: allowed;
+- direct revision-checked own-comment edit: allowed;
+- direct revision-checked soft removal: allowed;
+- final operation completed without hard deletion;
+- no credentials, token, document ID, or full error object was recorded.
+
+This establishes the owner positive comment lifecycle only. Editor cross-author denial, viewer denial, non-member denial, cross-workspace isolation, raw query bounds, revocation, and remaining Phase H checks are still pending.
+
 ## Safety boundary
 
 - Use a dedicated test workspace and a dedicated active test card for any positive direct API mutation.
