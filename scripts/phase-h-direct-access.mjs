@@ -3,8 +3,11 @@
 /**
  * Phase H direct Firestore probe.
  *
- * Read-only by design. It performs authenticated reads and intentionally
- * unauthorized/stale writes, then prints only HTTP status classifications.
+ * Negative-write authorization probe. It performs authenticated or anonymous reads
+ * plus intentionally invalid/stale writes that production Rules must deny, then
+ * prints only HTTP status classifications. Run it only against a dedicated test
+ * target because a misconfigured Rules deployment could make a negative write
+ * unexpectedly succeed.
  * It never prints, stores, or includes the bearer token in an error message.
  *
  * Required environment variables:
