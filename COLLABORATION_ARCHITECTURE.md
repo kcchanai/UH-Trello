@@ -2,7 +2,7 @@
 
 ## Status
 
-Flowboard is a GitHub Pages-hosted, local-first application with real Firebase Google Authentication and an authenticated shared Firestore workspace. G3 authenticated comments are deployed and owner/editor/viewer UI acceptance is complete. Phase H direct Firestore authorization, revocation, privacy, quota, and final release evidence remain in progress.
+Flowboard is a GitHub Pages-hosted, local-first application with real Firebase Google Authentication and authenticated shared Firestore workspaces. G3 authenticated comments and the Phase H direct-authorization, ownership, hard-delete, revocation, offline-write, and local-isolation gates are complete. Privacy, quota, conflict, manual accessibility, and final release evidence remain in progress.
 
 The complete, current order of work is [`TERRA_NEXT_PHASES_PLAN.md`](TERRA_NEXT_PHASES_PLAN.md). This document records the selected architecture and the constraints future work must preserve.
 
@@ -83,13 +83,13 @@ The cloud-copy migration is intentionally two-stage:
 5. Read back workspace metadata and board IDs/counts before reporting success.
 6. Leave the browser-local original active. The compact status **Cloud copy · local** means the cloud copy was verified while local persistence remains active.
 
-Cloud workspace switching, preview, and editing are later phases. There is no implicit migration and no automatic synchronization.
+Cloud workspace discovery, explicit switching, granular editing, and active-surface realtime synchronization are deployed. There is no implicit migration and no automatic local/cloud merge.
 
-## Realtime, conflicts, and revocation plan
+## Realtime, conflicts, and revocation
 
-Do not subscribe to an entire account or every board. Shared editing will subscribe only to the active workspace, current membership, and active board/list/card data, then unsubscribe promptly on selection changes, sign-out, role loss, or removal.
+Flowboard does not subscribe to an entire account or every board. Shared editing subscribes only to the active workspace, current membership, and active board/list/card data, then unsubscribes on selection changes, sign-out, role loss, or removal. Browser reconnect performs a server-backed membership preflight before listeners restart.
 
-Each cloud mutation will use:
+Each cloud mutation uses:
 
 - an opaque `clientMutationId` for idempotency/activity correlation;
 - integer document revision and transaction precondition checks;
@@ -97,9 +97,9 @@ Each cloud mutation will use:
 - atomic batches for linked structural updates;
 - sortable/fractional ranks with bounded rebalance batches for order changes.
 
-A stale revision must surface a reload/reapply conflict state rather than silently overwrite another person's edit. Pending, synced, offline, retrying, and access-removed states must be truthful.
+A stale revision surfaces a conflict state and rolls back the optimistic local change rather than silently overwriting another person's edit. Pending, synced, offline, retrying, and access-removed states remain distinct.
 
-The initial shared release should use memory-only Firestore state rather than persistent disk caching. Persistent cloud caching can retain content after a membership revocation and requires a separate privacy/revocation design before adoption.
+The shared release uses memory-only Firestore state rather than persistent disk caching. The SDK can retain a transient in-memory write while a tab is offline, but Rules authorize it on reconnect and the UI must not report it as synced. Persistent cloud caching can retain content after membership revocation and requires a separate privacy/revocation design before adoption.
 
 ## Validation and release gates
 

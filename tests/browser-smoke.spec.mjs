@@ -61,3 +61,43 @@ test('compact cloud-copy status fits the responsive top bar', async ({page}) => 
   const dimensions = await status.evaluate(element => ({clientWidth:element.clientWidth, scrollWidth:element.scrollWidth}));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
 });
+
+test('responsive widths confine horizontal scrolling to the board lane', async ({page}) => {
+  await page.goto('/UH-Trello/');
+  for (const width of [1280, 700, 440, 320]) {
+    await page.setViewportSize({width, height:720});
+    const layout = await page.evaluate(() => {
+      const root = document.documentElement, board = document.querySelector('#board');
+      return {
+        pageFits:root.scrollWidth <= root.clientWidth,
+        boardOverflow:getComputedStyle(board).overflowX,
+        boardScrollable:board.scrollWidth > board.clientWidth
+      };
+    });
+    expect(layout.pageFits, `page overflow at ${width}px`).toBe(true);
+    expect(layout.boardOverflow).toBe('auto');
+    if (width === 320) expect(layout.boardScrollable).toBe(true);
+  }
+});
+
+test('forced colors and reduced motion retain borders, focus, and bounded motion', async ({page}) => {
+  await page.emulateMedia({forcedColors:'active', reducedMotion:'reduce'});
+  await page.goto('/UH-Trello/');
+  await page.keyboard.press('Tab');
+  const card = page.locator('.card').first();
+  const evidence = await card.evaluate(element => {
+    const cardStyle = getComputedStyle(element), focusStyle = getComputedStyle(document.activeElement);
+    return {
+      forcedColors:matchMedia('(forced-colors: active)').matches,
+      reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,
+      borderStyle:cardStyle.borderStyle,
+      transitionSeconds:Math.max(...cardStyle.transitionDuration.split(',').map(value => parseFloat(value) || 0)),
+      focusVisible:focusStyle.outlineStyle !== 'none' && parseFloat(focusStyle.outlineWidth) > 0
+    };
+  });
+  expect(evidence.forcedColors).toBe(true);
+  expect(evidence.reducedMotion).toBe(true);
+  expect(evidence.borderStyle).toBe('solid');
+  expect(evidence.transitionSeconds).toBeLessThanOrEqual(0.001);
+  expect(evidence.focusVisible).toBe(true);
+});

@@ -28,10 +28,12 @@ A lightweight, local-first project-planning board inspired by kanban tools. It u
 - Keyboard-operable board-action menu (Arrow keys, Home/End, Escape), card details, keyboard card movement, and 44 px coarse-pointer targets.
 - Forced-colors/high-contrast support, 200% reflow safeguards, and reduced-motion support.
 - Browser-local persistence and migration from the original MVP storage format.
-- A tested `LocalWorkspaceAdapter` boundary. The application does not bypass it for browser persistence, and unavailable cloud operations fail explicitly rather than imitating sign-in or sync.
+- A tested `LocalWorkspaceAdapter` boundary. The application does not bypass it for browser persistence, and cloud mode never writes cloud content into the browser-local workspace.
 - Real Firebase Google sign-in with persistent browser sessions, account status, and sign-out; authentication never implies authorization or automatic data migration.
 - A backup-first, explicit cloud-copy flow that reviews board/list/card counts, downloads JSON before enabling upload, creates owner membership under deployed Firestore Security Rules, verifies the written boards, and keeps the local original active.
-- A per-board **Collaboration plan** that records planned owner/editor/viewer roles and access mode locally, plus a clearly labelled local viewer-preview guard. It does not provide accounts, invitations, server authorization, or sync.
+- Authenticated cloud workspace discovery, explicit switching, granular revision-aware editing, active-workspace realtime listeners, conflict rollback, and return-to-local restoration.
+- Owner/editor/viewer roles, email-matched invitation links, member administration, self-leave, ownership transfer, immediate revocation, and server-enforced read-only access.
+- Member-backed cloud assignments, privacy-minimal append-only activity, and authenticated bounded card comments with soft removal.
 
 ## Run locally
 
@@ -48,7 +50,9 @@ Vite serves the project at `http://127.0.0.1:5173/UH-Trello/` by default. `npm r
 
 ## Data and privacy
 
-Flowboard's active board remains browser-local in `localStorage` unless the signed-in user separately reviews and confirms **Create cloud copy**. Sign-in alone never uploads, merges, replaces, or deletes local data. The migration flow requires a downloaded JSON backup, creates a separate Firestore workspace and owner membership, verifies the cloud board documents, and leaves the local original active; realtime synchronization and cloud editing are not enabled yet. The local **Collaboration plan** remains planning metadata and a UI-only viewer preview, not server authorization. The app uses a versioned `flowboard-workspace` storage envelope (currently schema 4), automatically migrates the original `flowboard-data` MVP format, and keeps up to five rotating browser-local recovery snapshots where storage permits. Undo history is session-only. Imports are validated before merge or replacement; invalid data leaves the current workspace untouched.
+Flowboard remains local-first. Sign-in alone never uploads, merges, replaces, synchronizes, or deletes browser-local data. The explicit cloud-copy flow requires a downloaded JSON backup, creates a separate Firestore workspace and owner membership, verifies the cloud documents, and leaves the local original active. Opening cloud mode does not replace local storage, and returning to local mode reloads the local workspace. The app uses a versioned `flowboard-workspace` storage envelope (currently schema 4), automatically migrates the original `flowboard-data` format, and keeps up to five rotating browser-local recovery snapshots where storage permits. Undo history is session-only. Imports are validated before merge or replacement; invalid data leaves the current workspace untouched.
+
+Optional collaboration stores Google/Firebase identity fields, workspace membership, content, comments, invitations, and privacy-minimal activity in Firestore under deployed Security Rules. Cloud comments are soft-removed, cards are archived, and parent hard deletion is denied. Persistent Firestore disk caching is disabled. See [`PRIVACY_AND_DATA_BOUNDARIES.md`](PRIVACY_AND_DATA_BOUNDARIES.md) for identity visibility, retention, exports, deletion restrictions, diagnostics redaction, quotas, terms references, and the institutional-data boundary.
 
 ## Project structure
 
@@ -69,6 +73,7 @@ Flowboard's active board remains browser-local in `localStorage` unless the sign
 - `IMPROVEMENT_PLAN.md` — prioritized product and design roadmap.
 - `VALIDATION_CHECKLIST.md` — repeatable acceptance checks.
 - `COLLABORATION_ARCHITECTURE.md` — Phase 7 decision record, safe integration boundary, server-side security requirements, and release gates.
+- `PRIVACY_AND_DATA_BOUNDARIES.md` — current identity, storage, visibility, retention, export, quota, and institutional-use boundaries.
 
 ## Deployment
 

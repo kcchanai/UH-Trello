@@ -401,7 +401,7 @@ Record only pass/fail, timestamp, account role, workspace/card test identifiers,
 - Disconnect one browser before a mutation. Confirm the UI does not claim `Synced` for an uncommitted write.
 - Reconnect and verify either authoritative convergence or an explicit rollback/conflict outcome.
 - Sign out while a cloud card is open. Confirm listeners stop and local data remains available.
-- No persistent Firestore disk cache or offline mutation queue is permitted in this release.
+- No persistent Firestore disk cache or persistent offline mutation queue is permitted in this release. A transient memory-only SDK batch may wait for reconnect, must not be reported as synced, and remains subject to server Rules when sent.
 
 ## Privacy and lifecycle record
 
