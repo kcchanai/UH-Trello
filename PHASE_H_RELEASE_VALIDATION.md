@@ -129,13 +129,18 @@ This establishes fail-closed behavior for forged workspace and nested comment-pa
 
 `scripts/phase-h-direct-access.mjs` performs authenticated reads and intentional negative writes without using Firebase Admin credentials.
 
-Required local-only environment variables:
+Required local-only target variables:
 
 ```text
-FLOWBOARD_ACCESS_TOKEN
 FLOWBOARD_WORKSPACE_ID
 FLOWBOARD_BOARD_ID
 FLOWBOARD_CARD_ID
+```
+
+Authenticated-member mode also requires:
+
+```text
+FLOWBOARD_ACCESS_TOKEN
 ```
 
 Optional:
@@ -143,6 +148,7 @@ Optional:
 ```text
 FLOWBOARD_PROJECT_ID
 FLOWBOARD_TAMPER_WORKSPACE_ID
+FLOWBOARD_ANONYMOUS
 ```
 
 Run it only in a local shell and retain the token in process environment, not a file:
@@ -162,11 +168,15 @@ Expected results for a member token:
 - board read: HTTP 200;
 - card read: HTTP 200;
 - bounded comment collection read with `pageSize=25`: HTTP 200;
+- comment collection read with `pageSize=26`: HTTP 403;
+- comment collection read without `pageSize`: HTTP 403;
 - cross-workspace workspace read: HTTP 403;
 - stale direct card write: HTTP 403;
 - malformed direct comment write: HTTP 403.
 
-Run the probe with owner, editor, viewer, and non-member tokens. For the non-member, the member reads and collection read must be HTTP 403. A token must never be considered evidence of identity unless its Firebase Auth account is independently verified in the test record.
+For an anonymous production check, set `FLOWBOARD_ANONYMOUS=YES` and omit `FLOWBOARD_ACCESS_TOKEN`. Workspace, board, card, and bounded-comment reads must then also return HTTP 403. Output redacts all target identifiers in both modes.
+
+Run the authenticated probe with a member token only when the token can remain local and ephemeral. The browser-session SDK checks already establish owner/editor/viewer/non-member role boundaries without token handling. A token must never be considered evidence of identity unless its Firebase Auth account is independently verified in the test record.
 
 ## Direct Firestore SDK checks from a signed-in production browser
 

@@ -16,6 +16,7 @@
  * Optional:
  *   FLOWBOARD_PROJECT_ID         defaults to flowboard-504105
  *   FLOWBOARD_TAMPER_WORKSPACE_ID a different workspace ID for isolation testing
+ *   FLOWBOARD_ANONYMOUS          set to YES to omit authentication and expect denial
  *
  * Example:
  *   FLOWBOARD_ACCESS_TOKEN='[local only]' \
@@ -31,8 +32,9 @@ const workspaceId = process.env.FLOWBOARD_WORKSPACE_ID;
 const boardId = process.env.FLOWBOARD_BOARD_ID;
 const cardId = process.env.FLOWBOARD_CARD_ID;
 const tamperWorkspaceId = process.env.FLOWBOARD_TAMPER_WORKSPACE_ID;
+const anonymous = process.env.FLOWBOARD_ANONYMOUS === 'YES';
 
-if (!token || !workspaceId || !boardId || !cardId) {
+if ((!token && !anonymous) || !workspaceId || !boardId || !cardId) {
   console.error('Missing required Phase H variables. Token value is intentionally not displayed.');
   process.exitCode = 2;
   process.exit();
@@ -40,7 +42,10 @@ if (!token || !workspaceId || !boardId || !cardId) {
 
 const root = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents`;
 const path = (...parts) => parts.map(part => encodeURIComponent(part)).join('/');
-const headers = {authorization: `Bearer ${token}`, accept: 'application/json'};
+const headers = {
+  ...(anonymous ? {} : {authorization: `Bearer ${token}`}),
+  accept: 'application/json'
+};
 
 async function call(method, url, body) {
   try {
@@ -72,10 +77,13 @@ const add = async (name, method, url, expected, body) => {
   checks.push({name, expected, status:result.status, result:classify(result, expected)});
 };
 
-await add('member workspace read', 'GET', `${root}/${workspacePath}`, 200);
-await add('member board read', 'GET', `${root}/${boardPath}`, 200);
-await add('member card read', 'GET', `${root}/${cardPath}`, 200);
-await add('bounded comment collection read', 'GET', `${root}/${commentsPath}?pageSize=25`, 200);
+const allowedReadStatus = anonymous ? 403 : 200;
+await add('workspace read', 'GET', `${root}/${workspacePath}`, allowedReadStatus);
+await add('board read', 'GET', `${root}/${boardPath}`, allowedReadStatus);
+await add('card read', 'GET', `${root}/${cardPath}`, allowedReadStatus);
+await add('bounded comment collection read', 'GET', `${root}/${commentsPath}?pageSize=25`, allowedReadStatus);
+await add('over-limit comment collection read denied', 'GET', `${root}/${commentsPath}?pageSize=26`, 403);
+await add('unbounded comment collection read denied', 'GET', `${root}/${commentsPath}`, 403);
 
 if (tamperWorkspaceId) {
   await add(
@@ -102,10 +110,8 @@ const malformedComment = {
 await add('direct malformed comment write denied', 'POST', `${root}/${commentsPath}`, 403, malformedComment);
 
 const summary = {
-  project: projectId,
-  workspace: workspaceId,
-  board: boardId,
-  card: cardId,
+  mode: anonymous ? 'anonymous' : 'authenticated-member',
+  target: 'redacted',
   checks,
   passed: checks.filter(check => check.result === 'pass').length,
   total: checks.length,
