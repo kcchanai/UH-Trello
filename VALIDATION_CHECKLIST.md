@@ -58,6 +58,18 @@ Run these checks before publishing a Flowboard change.
 - [ ] Separate real Google accounts verify owner/editor/viewer/non-member direct Firestore access after each production rule publication.
 - [ ] Keep `COLLABORATION_ARCHITECTURE.md` and `TERRA_NEXT_PHASES_PLAN.md` current; client UI is never treated as authorization.
 
+## Phase H production release and privacy
+
+- [ ] Run `scripts/phase-h-direct-access.mjs` locally with a dedicated test workspace for owner, editor, viewer, and non-member tokens; keep tokens out of files, chat, and logs.
+- [ ] Record direct workspace/board/card/comment/activity reads and cross-workspace denial.
+- [ ] Record direct viewer/non-member write denial and malformed/forged-ID denial.
+- [ ] Verify hard deletion of cloud parents and comments is denied; verify card archive and comment soft-removal retention.
+- [ ] Verify revocation during an active card session stops listeners and subsequent direct reads/writes.
+- [ ] Verify conflict, offline/reconnect, sign-out, and local restoration behavior.
+- [ ] Document Firebase/Google identity use, membership visibility, exports, retention, leave/removal, deletion restrictions, redacted diagnostics, and the UH/institutional-data boundary.
+- [ ] Recheck Firebase Spark pricing, quotas, terms, and hawaii.edu organization policy before beta.
+- [ ] Record the published Firestore Rules revision and exact source commit.
+
 ## Visual and accessibility checks
 
 - [ ] Inspect at desktop width, 700 px, 440 px, and 320 px.

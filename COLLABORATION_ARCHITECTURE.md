@@ -2,13 +2,7 @@
 
 ## Status
 
-Flowboard is a GitHub Pages-hosted, local-first application with real Firebase Google Authentication and an explicit, backup-first verified Firestore cloud-copy path.
-
-- Local-only Flowboard remains fully usable without an account or network connection.
-- Signing in never uploads, replaces, hides, or merges browser-local data.
-- A signed-in owner can deliberately download a local JSON backup, create a separate cloud workspace, upload a cloud copy, and verify the remote write/read-back.
-- That cloud copy is not yet a shared editable workspace. Workspace discovery, invitations, member administration, granular cloud documents, realtime synchronization, and multi-account release validation remain in the sequential plan.
-- Firestore Security Rules—not client-side controls or Firebase public configuration—are the authorization boundary.
+Flowboard is a GitHub Pages-hosted, local-first application with real Firebase Google Authentication and an authenticated shared Firestore workspace. G3 authenticated comments are deployed and owner/editor/viewer UI acceptance is complete. Phase H direct Firestore authorization, revocation, privacy, quota, and final release evidence remain in progress.
 
 The complete, current order of work is [`TERRA_NEXT_PHASES_PLAN.md`](TERRA_NEXT_PHASES_PLAN.md). This document records the selected architecture and the constraints future work must preserve.
 
@@ -51,6 +45,7 @@ workspaces/{workspaceId}/invites/{inviteId}
 workspaces/{workspaceId}/boards/{boardId}
 workspaces/{workspaceId}/boards/{boardId}/lists/{listId}
 workspaces/{workspaceId}/boards/{boardId}/cards/{cardId}
+workspaces/{workspaceId}/boards/{boardId}/cards/{cardId}/comments/{commentId}
 workspaces/{workspaceId}/activity/{eventId}
 ```
 
@@ -68,6 +63,12 @@ The first invitation release uses a copyable link. The link includes random work
 6. Revocation is a durable state; the link becomes unreadable/unacceptable.
 
 Ordinary member edits cannot create or promote an `owner`. A dedicated atomic ownership-transfer operation changes `workspace.ownerUid`, promotes an existing editor/viewer, and demotes the previous owner. It must never leave zero owners.
+
+## Phase H direct authorization and release validation
+
+The current Phase H runbook is [`PHASE_H_RELEASE_VALIDATION.md`](PHASE_H_RELEASE_VALIDATION.md). It is the source of the direct REST probe, separate owner/editor/viewer/non-member matrix, revocation checks, privacy record, and final release evidence requirements.
+
+Client controls are usability only. Production authorization evidence must come from authenticated direct Firestore requests and the published Rules revision. Hard deletion of cloud parents and comments is denied; cloud cards are archived and comments are soft-removed so nested comment records do not become unauthorized orphan data.
 
 ## Local/cloud boundary and migration
 
