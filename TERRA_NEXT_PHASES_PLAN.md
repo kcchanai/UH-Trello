@@ -287,7 +287,7 @@ Each feature requires its own Security Rules tests, accessibility pass, quota es
 ### Privacy and lifecycle
 
 - Explain Firebase/Google account data, workspace membership visibility, retention, exports, and deletion.
-- Add owner-confirmed workspace deletion with recent JSON export guidance.
+- Add owner-confirmed workspace rename and recoverable archive/restore with retained-data disclosure. Permanent purge remains unavailable unless a privileged recursive-deletion architecture is separately approved.
 - Add account/workspace leave behavior and member removal documentation.
 - Redact emails, tokens, invite IDs, and document contents from user-facing diagnostics and logs.
 - Decide whether institutional/UH-controlled data is permitted before beta.

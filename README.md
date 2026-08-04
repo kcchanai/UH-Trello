@@ -32,6 +32,7 @@ A lightweight, local-first project-planning board inspired by kanban tools. It u
 - Real Firebase Google sign-in with persistent browser sessions, account status, and sign-out; authentication never implies authorization or automatic data migration.
 - A backup-first, explicit cloud-copy flow that reviews board/list/card counts, downloads JSON before enabling upload, creates owner membership under deployed Firestore Security Rules, verifies the written boards, and keeps the local original active.
 - Authenticated cloud workspace discovery, explicit switching, granular revision-aware editing, active-workspace realtime listeners, conflict rollback, and return-to-local restoration.
+- Workspace owners can rename active cloud workspaces and archive or restore retained workspaces. Archiving blocks board, list, card, comment, activity, membership, and invitation mutations until restoration; it is not permanent erasure.
 - Owner/editor/viewer roles, email-matched invitation links, member administration, self-leave, ownership transfer, immediate revocation, and server-enforced read-only access.
 - Member-backed cloud assignments, privacy-minimal append-only activity, and authenticated bounded card comments with soft removal.
 

@@ -154,6 +154,10 @@
       if (!['cloud-preview', 'cloud'].includes(activeWorkspace.kind)) return;
       cloudMutationPending = false; document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close()); state = loadState(); activeWorkspace = {kind:'local'}; undoHistory = []; openCardId = null; applyTheme(); render(); window.dispatchEvent(new Event('flowboard:cloud-preview-change')); say(message || 'Cloud workspace access was removed. Your browser-local workspace is active and unchanged.');
     },
+    updateCloudWorkspaceName(id, name) {
+      if (!['cloud-preview', 'cloud'].includes(activeWorkspace.kind) || activeWorkspace.id !== id) return;
+      activeWorkspace.name = name; render();
+    },
     openCloudPreview(workspace, metadata = {}) {
       if (!FlowboardState.validWorkspace(workspace)) throw new Error('The cloud workspace data is not a supported Flowboard workspace.');
       state = normalizeWorkspace(clone(workspace)); activeWorkspace = {kind:'cloud-preview', id:metadata.id || '', name:metadata.name || 'Cloud workspace', role:metadata.role || 'viewer', syncStatus:'Connecting'};

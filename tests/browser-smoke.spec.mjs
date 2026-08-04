@@ -1,4 +1,7 @@
 import {test, expect} from '@playwright/test';
+import {readdirSync} from 'node:fs';
+
+const builtLifecycleAsset = () => `/UH-Trello/assets/${readdirSync('dist/assets').find(file => file.startsWith('workspace-lifecycle-ui-') && file.endsWith('.js'))}`;
 
 test('critical local-first card workflow persists after reload', async ({page}) => {
   await page.goto('/UH-Trello/');
@@ -51,6 +54,51 @@ test('Google account dialog preserves an explicit local-only boundary', async ({
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(account).toBeFocused();
+});
+
+test('owner workspace lifecycle dialog renames, archives, restores, and returns focus', async ({page}) => {
+  await page.goto('/UH-Trello/');
+  await page.evaluate(async asset => {
+    const {createWorkspaceLifecycleControls} = await import(asset);
+    const fixture = document.createElement('section'), openButton = document.createElement('button');
+    const title = document.createElement('strong'), detail = document.createElement('span'), status = document.createElement('output');
+    fixture.className = 'lifecycle-fixture'; openButton.textContent = 'Open fixture'; title.textContent = 'Lifecycle fixture';
+    fixture.append(openButton, title, detail, status); document.body.prepend(fixture);
+    const entry = {id:'fixture', name:'Lifecycle fixture', ownerUid:'owner', role:'owner', status:'ready', migration:{state:'verified'}};
+    let revision=0;
+    const mutate=options=>{if(options.expectedRevision!==revision)throw Object.assign(new Error('stale'),{code:'REVISION_CONFLICT'});return ++revision;};
+    const adapter = {
+      renameWorkspace:async options => ({name:options.name.trim(),lifecycleRevision:mutate(options)}),
+      archiveWorkspace:async options => ({status:'archived',lifecycleRevision:mutate(options)}),
+      restoreWorkspace:async options => ({status:'ready',lifecycleRevision:mutate(options)})
+    };
+    fixture.append(createWorkspaceLifecycleControls({entry, session:{uid:'owner'}, cloudAdapter:adapter, openButton, title, detail, lifecycleStatus:status}));
+    const nonOwner = document.createElement('section'), nonOwnerOpen = document.createElement('button');
+    nonOwner.className = 'non-owner-lifecycle-fixture';
+    nonOwner.append(nonOwnerOpen, createWorkspaceLifecycleControls({entry:{...entry, role:'editor'}, session:{uid:'editor'}, cloudAdapter:adapter, openButton:nonOwnerOpen, title:document.createElement('strong'), detail:document.createElement('span'), lifecycleStatus:document.createElement('output')}));
+    document.body.prepend(nonOwner);
+  }, builtLifecycleAsset());
+
+  const fixture = page.locator('.lifecycle-fixture');
+  await expect(page.locator('.non-owner-lifecycle-fixture').getByRole('button')).toHaveCount(1);
+  await fixture.getByRole('button', {name:'Rename'}).click();
+  const rename = page.getByRole('dialog', {name:'Rename cloud workspace'});
+  await rename.getByLabel('Workspace name').fill('Renamed lifecycle fixture');
+  await rename.getByRole('button', {name:'Save name'}).click();
+  await expect(fixture.locator('strong')).toHaveText('Renamed lifecycle fixture');
+
+  const archiveButton = fixture.getByRole('button', {name:'Archive'});
+  await archiveButton.click();
+  const archive = page.getByRole('dialog', {name:'Archive cloud workspace?'});
+  await expect(archive).toContainText('contents will be retained');
+  await page.keyboard.press('Escape');
+  await expect(archiveButton).toBeFocused();
+  await archiveButton.click();
+  await archive.getByRole('button', {name:'Archive workspace'}).click();
+  await expect(fixture.getByRole('button', {name:'Open fixture'})).toBeHidden();
+  await expect(fixture).toContainText('archived · retained');
+  await fixture.getByRole('button', {name:'Restore'}).click();
+  await expect(fixture.getByRole('button', {name:'Open fixture'})).toBeVisible();
 });
 
 test('compact cloud-copy status fits the responsive top bar', async ({page}) => {

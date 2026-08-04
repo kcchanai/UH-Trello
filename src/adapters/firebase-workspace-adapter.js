@@ -24,8 +24,9 @@ export function createFirebaseWorkspaceAdapter(config) {
   const persistenceReady = setPersistence(auth, browserLocalPersistence);
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({prompt:'select_account'});
-  let workspaceModule;
+  let workspaceModule, lifecycleModule;
   const cloud = () => workspaceModule ||= import('./firebase-cloud-workspace.js');
+  const lifecycle = () => lifecycleModule ||= import('./firebase-workspace-lifecycle.js');
 
   const adapter = {
     async getSession() { await persistenceReady; return sessionFor(auth.currentUser); },
@@ -35,6 +36,9 @@ export function createFirebaseWorkspaceAdapter(config) {
     async verifyWorkspaceAccess(workspaceId) { return (await cloud()).verifyWorkspaceAccess(app, auth, workspaceId); },
     async listWorkspaces() { return (await cloud()).listCloudWorkspaces(app, auth); },
     async fetchWorkspace(workspaceId) { return (await cloud()).fetchCloudWorkspace(app, auth, workspaceId); },
+    async renameWorkspace(options) { return (await lifecycle()).renameCloudWorkspace(app, auth, options); },
+    async archiveWorkspace(options) { return (await lifecycle()).archiveCloudWorkspace(app, auth, options); },
+    async restoreWorkspace(options) { return (await lifecycle()).restoreCloudWorkspace(app, auth, options); },
     async subscribeWorkspace(options) { return (await cloud()).subscribeCloudWorkspace(app, auth, options); },
     async listActivity(workspaceId, options) { return (await cloud()).listWorkspaceActivity(app, auth, workspaceId, options); },
     async subscribeComments(options) { return (await cloud()).subscribeCardComments(app, auth, options); },

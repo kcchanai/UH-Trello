@@ -64,6 +64,7 @@ A removed member loses direct reads, writes, and listeners. On reconnect, Flowbo
 
 - Comment removal is soft removal. The active body is cleared, while a minimal tombstone and matching activity evidence remain.
 - Cloud cards are archived rather than hard-deleted.
+- A workspace owner may archive and later restore a cloud workspace. Archive retains workspace content, memberships, invitations, and audit records; it blocks content access and lifecycle mutations until restoration and is not permanent deletion.
 - Client hard deletion of workspaces, boards, lists, cards, comments, invitations, and activity records is denied. Firestore does not cascade descendant deletion, so allowing parent deletion could strand inaccessible child records.
 - Revoked and accepted invitation state may remain as lifecycle evidence.
 - Activity records are append-only and cannot be edited or deleted by clients.

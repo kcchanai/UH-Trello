@@ -58,6 +58,18 @@ Run these checks before publishing a Flowboard change.
 - [ ] Separate real Google accounts verify owner/editor/viewer/non-member direct Firestore access after each production rule publication.
 - [ ] Keep `COLLABORATION_ARCHITECTURE.md` and `TERRA_NEXT_PHASES_PLAN.md` current; client UI is never treated as authorization.
 
+## Cloud workspace lifecycle
+
+- [x] Application lifecycle presentation tests pass for owner, editor, viewer, active, and archived states.
+- [x] Firestore Emulator tests pass for owner-only rename/archive/restore, invalid lifecycle denial, archived content denial, frozen member/invitation mutations, migration compatibility, and continued hard-delete denial.
+- [x] Browser tests cover rename, retained-data archive confirmation, Escape cancellation, focus return, archived non-openability, restore, and non-owner control absence.
+- [x] Full local validation passes with 16 application tests, 22 Rules tests, 8 browser checks, syntax/static checks, production build, and the unchanged source budget.
+- [ ] Publish the source-controlled Rules only after release approval and record the deployed Rules source revision.
+- [ ] Verify production owner rename convergence in a second authenticated browser without refresh.
+- [ ] Verify editor/viewer/non-member/former-member/revoked-member lifecycle denial and listener shutdown after owner archive.
+- [ ] Verify archive and restore leave `flowboard-workspace` and `flowboard-data` unchanged.
+- [ ] Restore the production workspace and remove or archive any acceptance fixtures through supported lifecycle operations.
+
 ## Phase H production release and privacy
 
 - [x] Run sanitized direct probes from authenticated browser sessions plus the anonymous REST harness; never copy or retain tokens, credentials, emails, UIDs, opaque document identifiers, or full payloads.

@@ -19,8 +19,17 @@ service cloud.firestore {
     function member(workspaceId) { return get(currentMemberDoc(workspaceId)).data; }
     function isMember(workspaceId) { return signedIn() && exists(currentMemberDoc(workspaceId)); }
     function isOwner(workspaceId) { return isMember(workspaceId) && member(workspaceId).role == 'owner'; }
+    function isActiveWorkspace(workspaceId) {
+      return get(workspaceDoc(workspaceId)).data.status == 'ready';
+    }
     function canEdit(workspaceId) {
-      return isMember(workspaceId) && member(workspaceId).role in ['owner', 'editor'];
+      return isMember(workspaceId)
+        && member(workspaceId).role in ['owner', 'editor']
+        && (
+          isActiveWorkspace(workspaceId)
+          || (member(workspaceId).role == 'owner' && get(workspaceDoc(workspaceId)).data.status == 'migrating')
+          || getAfter(workspaceDoc(workspaceId)).data.status == 'ready'
+        );
     }
     function validRole(role) { return role in ['owner', 'editor', 'viewer']; }
     function invitePath(workspaceId, inviteId) {
@@ -89,10 +98,46 @@ service cloud.firestore {
         && nextOwner != previousOwner
         && newOwnerBefore.role in ['editor', 'viewer']
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerUid', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time
         && oldOwnerAfter.uid == previousOwner
         && oldOwnerAfter.role in ['editor', 'viewer']
         && newOwnerAfter.uid == nextOwner
         && newOwnerAfter.role == 'owner';
+    }
+    function validWorkspaceOwnerUpdate(workspaceId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let previousLifecycleRevision = resource.data.get('lifecycleRevision', 0);
+      return isOwner(workspaceId)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.updatedAt == request.time
+        && (
+          (changed.hasOnly(['name', 'lifecycleRevision', 'updatedAt'])
+            && request.resource.data.lifecycleRevision == previousLifecycleRevision + 1
+            && request.resource.data.name is string
+            && request.resource.data.name.size() > 0
+            && request.resource.data.name.size() <= 80)
+          || (resource.data.status == 'ready'
+            && request.resource.data.status == 'archived'
+            && changed.hasOnly(['status', 'lifecycleRevision', 'archivedAt', 'archivedByUid', 'updatedAt'])
+            && request.resource.data.lifecycleRevision == previousLifecycleRevision + 1
+            && request.resource.data.archivedAt == request.time
+            && request.resource.data.archivedByUid == request.auth.uid)
+          || (resource.data.status == 'archived'
+            && request.resource.data.status == 'ready'
+            && changed.hasOnly(['status', 'lifecycleRevision', 'archivedAt', 'archivedByUid', 'updatedAt'])
+            && request.resource.data.lifecycleRevision == previousLifecycleRevision + 1
+            && request.resource.data.archivedAt == null
+            && request.resource.data.archivedByUid == null)
+          || (resource.data.status == 'initializing'
+            && request.resource.data.status == 'ready'
+            && changed.hasOnly(['status', 'updatedAt']))
+          || (resource.data.status == 'ready'
+            && request.resource.data.status == 'migrating'
+            && changed.hasOnly(['status', 'migration', 'updatedAt']))
+          || (resource.data.status == 'migrating'
+            && request.resource.data.status == 'ready'
+            && changed.hasOnly(['status', 'migration', 'updatedAt']))
+        );
     }
     function validTransferredMemberUpdate(workspaceId, uid) {
       let workspaceAfter = getAfter(workspaceDoc(workspaceId)).data;
@@ -257,9 +302,7 @@ service cloud.firestore {
         && request.resource.data.ownerUid == request.auth.uid
         && getAfter(memberDoc(workspaceId, request.auth.uid)).data.uid == request.auth.uid
         && getAfter(memberDoc(workspaceId, request.auth.uid)).data.role == 'owner';
-      allow update: if isOwner(workspaceId) && (
-        request.resource.data.ownerUid == resource.data.ownerUid || validOwnershipTransfer(workspaceId)
-      );
+      allow update: if validWorkspaceOwnerUpdate(workspaceId) || validOwnershipTransfer(workspaceId);
       allow delete: if false;
 
       match /members/{uid} {
@@ -271,46 +314,54 @@ service cloud.firestore {
             (uid == request.auth.uid
               && request.resource.data.role == 'owner'
               && getAfter(workspaceDoc(workspaceId)).data.ownerUid == uid)
-            || (isOwner(workspaceId) && request.resource.data.role in ['editor', 'viewer'])
-            || (uid == request.auth.uid && validInviteMembershipCreate(workspaceId, uid))
+            || (isActiveWorkspace(workspaceId) && (
+              (isOwner(workspaceId) && request.resource.data.role in ['editor', 'viewer'])
+              || (uid == request.auth.uid && validInviteMembershipCreate(workspaceId, uid))
+            ))
           );
-        allow update: if validTransferredMemberUpdate(workspaceId, uid) || (
-          isOwner(workspaceId)
-          && resource.data.role in ['editor', 'viewer']
-          && request.resource.data.uid == uid
-          && request.resource.data.emailLower == resource.data.emailLower
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
-          && request.resource.data.role in ['editor', 'viewer']
+        allow update: if isActiveWorkspace(workspaceId) && (
+          validTransferredMemberUpdate(workspaceId, uid) || (
+            isOwner(workspaceId)
+            && resource.data.role in ['editor', 'viewer']
+            && request.resource.data.uid == uid
+            && request.resource.data.emailLower == resource.data.emailLower
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+            && request.resource.data.role in ['editor', 'viewer']
+          )
         );
-        allow delete: if validSelfLeave(workspaceId, uid)
-          || (isOwner(workspaceId) && resource.data.role != 'owner');
+        allow delete: if isActiveWorkspace(workspaceId) && (
+          validSelfLeave(workspaceId, uid)
+          || (isOwner(workspaceId) && resource.data.role != 'owner')
+        );
       }
 
       match /invites/{inviteId} {
         allow read: if isOwner(workspaceId) || activeInviteForCurrentUser(resource.data);
-        allow create: if isOwner(workspaceId) && validInviteShape(request.resource.data);
-        allow update: if (isOwner(workspaceId)
-          && resource.data.revokedAt == null
-          && resource.data.acceptedAt == null
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revokedAt'])
-          && request.resource.data.revokedAt == request.time)
-          || validInviteAcceptance(workspaceId, inviteId);
+        allow create: if isActiveWorkspace(workspaceId) && isOwner(workspaceId) && validInviteShape(request.resource.data);
+        allow update: if isActiveWorkspace(workspaceId) && (
+          (isOwner(workspaceId)
+            && resource.data.revokedAt == null
+            && resource.data.acceptedAt == null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revokedAt'])
+            && request.resource.data.revokedAt == request.time)
+          || validInviteAcceptance(workspaceId, inviteId)
+        );
         allow delete: if false;
       }
 
       match /boards/{boardId} {
-        allow read: if isMember(workspaceId);
+        allow read: if isMember(workspaceId) && isActiveWorkspace(workspaceId);
         allow create: if canEdit(workspaceId) && validInitialRevision();
         allow update: if canEdit(workspaceId) && validRevision();
         allow delete: if false;
         match /lists/{listId} {
-          allow read: if isMember(workspaceId);
+          allow read: if isMember(workspaceId) && isActiveWorkspace(workspaceId);
           allow create: if canEdit(workspaceId) && validInitialRevision();
           allow update: if canEdit(workspaceId) && validRevision();
           allow delete: if false;
         }
         match /cards/{cardId} {
-          allow read: if isMember(workspaceId);
+          allow read: if isMember(workspaceId) && isActiveWorkspace(workspaceId);
           allow create: if canEdit(workspaceId) && validInitialRevision() && validCardAssignments(workspaceId, request.resource.data);
           allow update: if canEdit(workspaceId) && validRevision() && validCardAssignmentUpdate(workspaceId);
           allow delete: if false;
@@ -326,7 +377,7 @@ service cloud.firestore {
       }
 
       match /activity/{activityId} {
-        allow read: if isMember(workspaceId);
+        allow read: if isMember(workspaceId) && isActiveWorkspace(workspaceId);
         allow create: if canEdit(workspaceId) && validActivity(request.resource.data, activityId);
         allow update, delete: if false;
       }

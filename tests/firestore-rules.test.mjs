@@ -275,7 +275,7 @@ test('owner bootstrap and backup-first board upload are permitted as separate ve
   upload.set(doc(owner, 'workspaces', 'migration-workspace', 'boards', 'board-1'), {
     title:'Imported board', rank:0, snapshot:{id:'board-1', title:'Imported board', lists:[]}, revision:0, clientMutationId:'mutation-identifier-0005'
   });
-  upload.update(doc(owner, 'workspaces', 'migration-workspace'), {status:'ready'});
+  upload.update(doc(owner, 'workspaces', 'migration-workspace'), {status:'ready', updatedAt:serverTimestamp()});
   await assertSucceeds(upload.commit());
   assert.equal((await getDoc(doc(owner, 'workspaces', 'migration-workspace', 'boards', 'board-1'))).exists(), true);
 });
@@ -380,4 +380,36 @@ test('activity is member-readable, immutable, actor-bound, and shape-bound', asy
   await assertFails(setDoc(doc(dbFor('invitee-uid'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0003'), {...valid, actorUid:'owner-a', clientMutationId:'activity-mutation-id-0003'}));
   await assertFails(setDoc(doc(dbFor('invitee-uid'), 'workspaces', 'alpha', 'activity', 'wrong-id'), {...valid, clientMutationId:'activity-mutation-id-0004'}));
   await assertFails(updateDoc(doc(dbFor('editor-a'), 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0001'), {action:'card-moved'}));
+});
+
+test('only owners can rename, archive, and restore retained cloud workspaces', async () => {
+  const owner = dbFor('owner-a'), editor = dbFor('editor-a');
+  const ownerWorkspace = doc(owner, 'workspaces', 'alpha'), editorWorkspace = doc(editor, 'workspaces', 'alpha');
+  const ownerBoard = doc(owner, 'workspaces', 'alpha', 'boards', 'board-1'), editorBoard = doc(editor, 'workspaces', 'alpha', 'boards', 'board-1');
+  const editorMember = doc(owner, 'workspaces', 'alpha', 'members', 'editor-a');
+  const activity = doc(owner, 'workspaces', 'alpha', 'activity', 'activity-mutation-id-0001');
+  const archivedInvite = doc(owner, 'workspaces', 'alpha', 'invites', 'archived-invite');
+
+  await assertSucceeds(updateDoc(ownerWorkspace, {name:'Renamed workspace', lifecycleRevision:1, updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(ownerWorkspace, {name:'Stale rename', lifecycleRevision:1, updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(editorWorkspace, {name:'Forged rename', lifecycleRevision:2, updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(ownerWorkspace, {status:'deleted', lifecycleRevision:2, updatedAt:serverTimestamp()}));
+  await assertSucceeds(updateDoc(ownerWorkspace, {status:'archived', lifecycleRevision:2, archivedAt:serverTimestamp(), archivedByUid:'owner-a', updatedAt:serverTimestamp()}));
+
+  await assertSucceeds(getDoc(editorWorkspace));
+  await assertFails(getDoc(editorBoard));
+  await assertFails(getDoc(ownerBoard));
+  await assertFails(getDoc(activity));
+  await assertFails(updateDoc(editorMember, {role:'viewer'}));
+  await assertFails(deleteDoc(editorMember));
+  await assertFails(setDoc(archivedInvite, {
+    emailLower:'archived@example.com', role:'viewer', createdBy:'owner-a',
+    createdAt:serverTimestamp(), acceptedAt:null, acceptedBy:null, revokedAt:null,
+    expiresAt:Timestamp.fromMillis(Date.now() + 3_600_000)
+  }));
+  await assertFails(updateDoc(editorBoard, {title:'Blocked while archived', revision:1, clientMutationId:'archive-blocked-mutation-01'}));
+  await assertFails(deleteDoc(ownerWorkspace));
+
+  await assertSucceeds(updateDoc(ownerWorkspace, {status:'ready', lifecycleRevision:3, archivedAt:null, archivedByUid:null, updatedAt:serverTimestamp()}));
+  await assertSucceeds(getDoc(editorBoard));
 });

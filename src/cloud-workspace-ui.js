@@ -95,6 +95,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
     exportCloud.hidden = returnLocal.hidden;
     try {
       const entries = await cloudAdapter.listWorkspaces();
+      const {createWorkspaceLifecycleControls} = await import('./workspace-lifecycle-ui.js');
       if (!entries.length) {
         if (globalThis.FlowboardApp?.getMode().kind === 'cloud-preview') globalThis.FlowboardApp.returnToLocal();
         returnLocal.hidden = true; exportCloud.hidden = true;
@@ -103,13 +104,13 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
       }
       workspacesStatus.textContent = 'Choose a verified workspace to open. Owners and editors can explicitly enter cloud edit mode.';
       entries.forEach(entry => {
-        const button = document.createElement('button');
-        button.type = 'button'; button.className = 'workspace-board';
+        const row = document.createElement('div'), button = document.createElement('button');
+        row.className = 'workspace-entry'; button.type = 'button'; button.className = 'workspace-board';
         const title = document.createElement('strong'), detail = document.createElement('span');
         title.textContent = entry.name || 'Untitled cloud workspace';
-        const editable = ['owner','editor'].includes(entry.role) && entry.migration?.state === 'verified';
-        detail.textContent = editable ? `Cloud workspace · ${entry.role} · editable` : 'Cloud workspace · read-only preview';
-        button.append(title, detail);
+        const archived = entry.status === 'archived', editable = !archived && ['owner','editor'].includes(entry.role) && entry.migration?.state === 'verified';
+        detail.textContent = archived ? 'Cloud workspace · archived · retained' : editable ? `Cloud workspace · ${entry.role} · editable` : 'Cloud workspace · read-only preview';
+        button.hidden = archived; button.append(title, detail);
         button.addEventListener('click', async () => {
           button.disabled = true; workspacesStatus.textContent = editable ? 'Opening editable cloud workspace…' : 'Opening read-only cloud preview…';
           try {
@@ -124,7 +125,11 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
             workspacesStatus.textContent = 'This cloud workspace could not be opened. Your local workspace is unchanged.';
           } finally { button.disabled = false; }
         });
-        workspacesList.append(button);
+        row.append(button, createWorkspaceLifecycleControls({entry, session, cloudAdapter, openButton:button, title, detail, lifecycleStatus:workspacesStatus, onArchived:archivedEntry => {
+          if (selectedCloudEntry?.id !== archivedEntry.id) return;
+          globalThis.FlowboardApp.returnToLocal(); selectedCloudEntry = null; window.dispatchEvent(new CustomEvent('flowboard:cloud-selection')); returnLocal.hidden = true; exportCloud.hidden = true;
+        }}));
+        workspacesList.append(row);
       });
     } catch (error) {
       console.error('Flowboard could not list cloud workspaces.', error);

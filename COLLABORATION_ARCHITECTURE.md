@@ -2,7 +2,7 @@
 
 ## Status
 
-Flowboard is a GitHub Pages-hosted, local-first application with real Firebase Google Authentication and authenticated shared Firestore workspaces. G3 authenticated comments and the Phase H direct-authorization, ownership, hard-delete, revocation, offline-write, and local-isolation gates are complete. Privacy, quota, conflict, manual accessibility, and final release evidence remain in progress.
+Flowboard is a GitHub Pages-hosted, local-first application with real Firebase Google Authentication and authenticated shared Firestore workspaces. Phase H production authorization, privacy, revocation, conflict, convergence, accessibility, quota, deployment, and cleanup gates are complete. Owner-only cloud workspace rename and recoverable archive/restore are implemented and locally validated; production release acceptance is pending.
 
 The complete, current order of work is [`TERRA_NEXT_PHASES_PLAN.md`](TERRA_NEXT_PHASES_PLAN.md). This document records the selected architecture and the constraints future work must preserve.
 
@@ -33,6 +33,17 @@ roles:
 ```
 
 A project-level Google Cloud/Firebase Owner is distinct from a Flowboard workspace `owner`.
+
+### Workspace lifecycle
+
+- Only the current workspace owner may rename, archive, or restore a cloud workspace. Firestore Rules enforce this independently of the UI.
+- Rename changes only the bounded workspace name and server timestamp.
+- Archive sets explicit lifecycle metadata. The workspace document, boards, lists, cards, comments, activity, members, and invitations are retained.
+- Archived workspace metadata remains discoverable to members so the owner can restore it, but workspace content cannot be opened or edited while archived.
+- Membership and invitation mutations are frozen while archived. Restoration re-enables the retained workspace under the existing membership state.
+- Archiving an active cloud workspace returns that browser to its independent local workspace and causes other active content listeners to fail closed under Rules.
+- Cloud parent hard deletion remains denied. Firestore does not cascade-delete subcollections, and Flowboard has no privileged recursive-deletion backend on the Spark plan.
+- Local browser storage is never renamed, archived, erased, merged, or uploaded by a cloud workspace lifecycle operation.
 
 ### Firestore paths
 
