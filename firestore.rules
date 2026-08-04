@@ -22,6 +22,12 @@ service cloud.firestore {
     function isActiveWorkspace(workspaceId) {
       return get(workspaceDoc(workspaceId)).data.status == 'ready';
     }
+    function canReadWorkspaceContent(workspaceId) {
+      return isMember(workspaceId) && (
+        isActiveWorkspace(workspaceId)
+        || (isOwner(workspaceId) && get(workspaceDoc(workspaceId)).data.status == 'migrating')
+      );
+    }
     function canEdit(workspaceId) {
       return isMember(workspaceId)
         && member(workspaceId).role in ['owner', 'editor']
@@ -350,18 +356,18 @@ service cloud.firestore {
       }
 
       match /boards/{boardId} {
-        allow read: if isMember(workspaceId) && isActiveWorkspace(workspaceId);
+        allow read: if canReadWorkspaceContent(workspaceId);
         allow create: if canEdit(workspaceId) && validInitialRevision();
         allow update: if canEdit(workspaceId) && validRevision();
         allow delete: if false;
         match /lists/{listId} {
-          allow read: if isMember(workspaceId) && isActiveWorkspace(workspaceId);
+          allow read: if canReadWorkspaceContent(workspaceId);
           allow create: if canEdit(workspaceId) && validInitialRevision();
           allow update: if canEdit(workspaceId) && validRevision();
           allow delete: if false;
         }
         match /cards/{cardId} {
-          allow read: if isMember(workspaceId) && isActiveWorkspace(workspaceId);
+          allow read: if canReadWorkspaceContent(workspaceId);
           allow create: if canEdit(workspaceId) && validInitialRevision() && validCardAssignments(workspaceId, request.resource.data);
           allow update: if canEdit(workspaceId) && validRevision() && validCardAssignmentUpdate(workspaceId);
           allow delete: if false;

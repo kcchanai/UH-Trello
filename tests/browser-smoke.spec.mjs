@@ -2,6 +2,7 @@ import {test, expect} from '@playwright/test';
 import {readdirSync} from 'node:fs';
 
 const builtLifecycleAsset = () => `/UH-Trello/assets/${readdirSync('dist/assets').find(file => file.startsWith('workspace-lifecycle-ui-') && file.endsWith('.js'))}`;
+const builtCloudWorkspaceAsset = () => `/UH-Trello/assets/${readdirSync('dist/assets').find(file => file.startsWith('cloud-workspace-ui-') && file.endsWith('.js'))}`;
 
 test('critical local-first card workflow persists after reload', async ({page}) => {
   await page.goto('/UH-Trello/');
@@ -99,6 +100,29 @@ test('owner workspace lifecycle dialog renames, archives, restores, and returns 
   await expect(fixture).toContainText('archived · retained');
   await fixture.getByRole('button', {name:'Restore'}).click();
   await expect(fixture.getByRole('button', {name:'Open fixture'})).toBeVisible();
+});
+
+test('owner can retry an interrupted migration and the workspace list refreshes to editable', async ({page}) => {
+  await page.goto('/UH-Trello/');
+  await page.evaluate(async asset => {
+    document.body.innerHTML = `<dialog id="account-dialog"></dialog><button id="open-cloud-migration"></button><dialog id="cloud-migration-dialog"><button id="close-cloud-migration"></button><input id="cloud-workspace-name"><dl id="cloud-migration-summary"></dl><p id="cloud-migration-status"></p><button id="download-migration-backup"></button><button id="create-cloud-workspace"></button></dialog><button id="open-cloud-workspaces">Cloud workspaces</button><dialog id="cloud-workspaces-dialog"><button id="close-cloud-workspaces"></button><div id="cloud-workspaces-list"></div><p id="cloud-workspaces-status"></p><button id="return-to-local-workspace"></button><button id="migrate-cloud-workspace">Migrate cloud format</button><button id="export-cloud-workspace"></button></dialog><div id="announcer"></div>`;
+    let verified = false;
+    const entry = () => ({id:'retry-fixture',name:'Interrupted fixture',ownerUid:'owner',role:'owner',status:verified?'ready':'migrating',migration:{state:verified?'verified':'migrating'}});
+    const cloudAdapter = {
+      listWorkspaces:async()=>[entry()],
+      fetchWorkspace:async()=>{if(!verified)throw new Error('interrupted');return {schemaVersion:4,activeBoardId:'board',boards:[]};},
+      migrateWorkspaceToGranular:async()=>{verified=true;return {boards:1,lists:1,cards:1};},
+      renameWorkspace:async()=>({}),archiveWorkspace:async()=>({}),restoreWorkspace:async()=>({})
+    };
+    globalThis.FlowboardApp={getMode:()=>({kind:'local'}),openCloudPreview:()=>{},returnToLocal:()=>{},exportCloudPreview:()=>{}};
+    const {initializeCloudWorkspaceUI}=await import(asset);
+    initializeCloudWorkspaceUI({localAdapter:{},cloudAdapter}).setSession({uid:'owner'});
+  }, builtCloudWorkspaceAsset());
+  await page.getByRole('button',{name:'Cloud workspaces'}).click();
+  await page.getByRole('button',{name:/Interrupted fixture/}).click();
+  await expect(page.locator('#cloud-workspaces-status')).toContainText('migration was interrupted');
+  await page.getByRole('button',{name:'Migrate cloud format'}).click();
+  await expect(page.locator('#cloud-workspaces-list')).toContainText('owner · editable');
 });
 
 test('compact cloud-copy status fits the responsive top bar', async ({page}) => {

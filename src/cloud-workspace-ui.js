@@ -89,7 +89,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
 
   workspaceButton.addEventListener('click', async () => {
     if (!session) return;
-    accountDialog.close(); workspacesDialog.showModal(); workspacesList.replaceChildren();
+    if (accountDialog.open) accountDialog.close(); workspacesDialog.showModal(); workspacesList.replaceChildren();
     workspacesStatus.textContent = 'Loading cloud workspaces…';
     returnLocal.hidden = !['cloud-preview','cloud'].includes(globalThis.FlowboardApp?.getMode().kind);
     exportCloud.hidden = returnLocal.hidden;
@@ -122,7 +122,10 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
             workspacesStatus.textContent = editable ? `Editing “${entry.name || 'Untitled cloud workspace'}” in cloud mode. Local data is unchanged.` : `Viewing “${entry.name || 'Untitled cloud workspace'}” as a read-only preview. Local data is unchanged.`;
           } catch (error) {
             console.error('Flowboard could not open cloud workspace preview.', error);
-            workspacesStatus.textContent = 'This cloud workspace could not be opened. Your local workspace is unchanged.';
+            if (entry.ownerUid === session.uid && entry.status === 'migrating') {
+              selectedCloudEntry = entry; migrateCloud.hidden = false;
+              workspacesStatus.textContent = 'This migration was interrupted. Retry the verified cloud-format migration; your local workspace is unchanged.';
+            } else workspacesStatus.textContent = 'This cloud workspace could not be opened. Your local workspace is unchanged.';
           } finally { button.disabled = false; }
         });
         row.append(button, createWorkspaceLifecycleControls({entry, session, cloudAdapter, openButton:button, title, detail, lifecycleStatus:workspacesStatus, onArchived:archivedEntry => {
@@ -152,6 +155,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
       globalThis.FlowboardApp.openCloudPreview(cloudWorkspace, selectedCloudEntry);
       migrateCloud.hidden = true;
       workspacesStatus.textContent = result.alreadyMigrated ? 'This workspace was already verified in the granular cloud format.' : `Granular migration verified: ${result.boards} boards, ${result.lists} lists, and ${result.cards} cards. Legacy snapshots remain available.`;
+      workspacesDialog.close(); workspaceButton.click();
     } catch (error) { console.error('Flowboard granular migration failed.', error); workspacesStatus.textContent = 'Granular migration could not be verified. Legacy cloud snapshots remain available.'; }
     finally { migrateCloud.disabled = false; }
   });

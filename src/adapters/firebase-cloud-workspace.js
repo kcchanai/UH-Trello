@@ -149,33 +149,7 @@ export async function verifyWorkspaceAccess(app, auth, workspaceId) {
   return membership.data().role;
 }
 
-export async function migrateWorkspaceToGranular(app, auth, workspaceId) {
-  const db = getFirestore(app), user = requireUser(auth), workspaceRef = doc(db, 'workspaces', workspaceId);
-  const workspaceSnapshot = await getDoc(workspaceRef);
-  if (!workspaceSnapshot.exists() || workspaceSnapshot.data().ownerUid !== user.uid) throw Object.assign(new Error('Only the workspace owner can migrate this cloud workspace.'), {code:'OWNER_REQUIRED'});
-  if (workspaceSnapshot.data().migration?.state === 'verified') return {alreadyMigrated:true, ...workspaceSnapshot.data().migration.counts};
-  const boards = await getDocs(query(collection(db, 'workspaces', workspaceId, 'boards'), orderBy('rank')));
-  const granular = boards.docs.map((item, rank) => granularizeBoard(item.data().snapshot, rank));
-  const counts = {boards:granular.length, lists:granular.reduce((n, item) => n + item.lists.length, 0), cards:granular.reduce((n, item) => n + item.cards.length, 0)};
-  if (counts.boards > 100 || counts.lists > 1000 || counts.cards > 10000) throw Object.assign(new Error('This workspace is too large for the safe granular migration.'), {code:'WORKSPACE_TOO_LARGE'});
-  await updateDoc(workspaceRef, {status:'migrating', migration:{version:1, state:'migrating', counts, startedAt:serverTimestamp()}, updatedAt:serverTimestamp()});
-  const writes = [];
-  granular.forEach(item => {
-    const boardRef = doc(db, 'workspaces', workspaceId, 'boards', item.board.id);
-    writes.push({ref:boardRef, data:{...item.board, granularVersion:1, revision:0, clientMutationId:randomId(), updatedAt:serverTimestamp()}, options:{merge:true}});
-    item.lists.forEach(list => writes.push({ref:doc(boardRef, 'lists', list.id), data:{...list, granularVersion:1, revision:0, clientMutationId:randomId(), updatedAt:serverTimestamp()}, options:{merge:true}}));
-    item.cards.forEach(card => writes.push({ref:doc(boardRef, 'cards', card.id), data:{...card, granularVersion:1, revision:0, clientMutationId:randomId(), updatedAt:serverTimestamp()}, options:{merge:true}}));
-  });
-  for (let index = 0; index < writes.length; index += 400) { const batch = writeBatch(db); writes.slice(index, index + 400).forEach(write => batch.set(write.ref, write.data, write.options)); await batch.commit(); }
-  const verified = await Promise.all(boards.docs.map(async item => {
-    const [lists, cards] = await Promise.all([getDocs(collection(item.ref, 'lists')), getDocs(collection(item.ref, 'cards'))]);
-    const expected = granular.find(entry => entry.board.id === item.id);
-    return lists.size === expected.lists.length && cards.size === expected.cards.length;
-  }));
-  if (!verified.every(Boolean)) throw Object.assign(new Error('Granular cloud migration could not be verified. The legacy snapshots were preserved.'), {code:'MIGRATION_VERIFICATION_FAILED'});
-  await updateDoc(workspaceRef, {status:'ready', migration:{version:1, state:'verified', counts, verifiedAt:serverTimestamp()}, updatedAt:serverTimestamp()});
-  return {alreadyMigrated:false, ...counts};
-}
+async function E(w,h,f){const c=getFirestore(w),v=requireUser(h),l=doc(c,"workspaces",f),g=await getDoc(l);if(!g.exists()||g.data().ownerUid!==v.uid)throw Object.assign(new Error("Only the workspace owner can migrate this cloud workspace."),{code:"OWNER_REQUIRED"});const n=g.data();if(n.migration?.state==="verified")return{alreadyMigrated:!0,...n.migration.counts};if(!["ready","migrating"].includes(n.status))throw Object.assign(new Error("This workspace cannot be migrated in its current state."),{code:"MIGRATION_UNAVAILABLE"});const u=await getDocs(query(collection(c,"workspaces",f,"boards"),orderBy("rank"))),b=await Promise.all(u.docs.map(async e=>({board:e,lists:await getDocs(collection(e.ref,"lists")),cards:await getDocs(collection(e.ref,"cards"))}))),i=u.docs.map((e,r)=>granularizeBoard(e.data().snapshot,r)),s={boards:i.length,lists:i.reduce((e,r)=>e+r.lists.length,0),cards:i.reduce((e,r)=>e+r.cards.length,0)};if(s.boards>100||s.lists>1e3||s.cards>1e4)throw Object.assign(new Error("This workspace is too large for the safe granular migration."),{code:"WORKSPACE_TOO_LARGE"});n.status!=="migrating"&&await updateDoc(l,{status:"migrating",migration:{version:1,state:"migrating",counts:s,startedAt:serverTimestamp()},updatedAt:serverTimestamp()});const p=e=>e?(e.data().revision??-1)+1:0,o=[];i.forEach(e=>{const r=b.find(a=>a.board.id===e.board.id),t=r.board.ref;o.push({ref:t,data:{...e.board,granularVersion:1,revision:p(r.board),clientMutationId:randomId(),updatedAt:serverTimestamp()},options:{merge:!0}});const d=new Map(r.lists.docs.map(a=>[a.id,a])),m=new Map(r.cards.docs.map(a=>[a.id,a]));e.lists.forEach(a=>o.push({ref:doc(t,"lists",a.id),data:{...a,granularVersion:1,revision:p(d.get(a.id)),clientMutationId:randomId(),updatedAt:serverTimestamp()},options:{merge:!0}})),e.cards.forEach(a=>o.push({ref:doc(t,"cards",a.id),data:{...a,granularVersion:1,revision:p(m.get(a.id)),clientMutationId:randomId(),updatedAt:serverTimestamp()},options:{merge:!0}}))});for(let e=0;e<o.length;e+=400){const r=writeBatch(c);o.slice(e,e+400).forEach(t=>r.set(t.ref,t.data,t.options)),await r.commit()}if(!(await Promise.all(u.docs.map(async e=>{const[r,t]=await Promise.all([getDocs(collection(e.ref,"lists")),getDocs(collection(e.ref,"cards"))]),d=i.find(m=>m.board.id===e.id);return r.size===d.lists.length&&t.size===d.cards.length}))).every(Boolean))throw Object.assign(new Error("Granular cloud migration could not be verified. The legacy snapshots were preserved."),{code:"MIGRATION_VERIFICATION_FAILED"});return await updateDoc(l,{status:"ready",migration:{version:1,state:"verified",counts:s,verifiedAt:serverTimestamp()},updatedAt:serverTimestamp()}),{alreadyMigrated:!1,...s}}export{E as migrateWorkspaceToGranular};
 
 export async function applyCloudMutation(app, auth, {workspaceId, boardId, entity, entityId, revision, clientMutationId, patch}) {
   const db = getFirestore(app); requireUser(auth);

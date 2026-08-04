@@ -96,6 +96,8 @@ The cloud-copy migration is intentionally two-stage:
 
 Cloud workspace discovery, explicit switching, granular editing, and active-surface realtime synchronization are deployed. There is no implicit migration and no automatic local/cloud merge.
 
+Granular migration is owner-only, revision-aware, and retryable after interruption. While status is `migrating`, Rules allow only the owner to read retained board/list/card documents needed for verification and recovery; editors, viewers, and outsiders remain denied. A retry reads all existing granular documents before writing, creates missing documents at revision 0, increments revisions on existing partial documents, verifies counts, and only then returns the workspace to `ready`. Recovery never requires direct Console data mutation.
+
 ## Realtime, conflicts, and revocation
 
 Flowboard does not subscribe to an entire account or every board. Shared editing subscribes only to the active workspace, current membership, and active board/list/card data, then unsubscribes on selection changes, sign-out, role loss, or removal. Browser reconnect performs a server-backed membership preflight before listeners restart.
