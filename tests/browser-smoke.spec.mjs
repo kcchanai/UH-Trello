@@ -103,13 +103,15 @@ test('owner workspace lifecycle dialog renames, archives, restores, and returns 
 });
 
 test('owner can retry an interrupted migration and the workspace list refreshes to editable', async ({page}) => {
+  await page.setViewportSize({width:390,height:844});
   await page.goto('/UH-Trello/');
   await page.evaluate(async asset => {
     document.body.innerHTML = `<dialog id="account-dialog"></dialog><button id="open-cloud-migration"></button><dialog id="cloud-migration-dialog"><button id="close-cloud-migration"></button><input id="cloud-workspace-name"><dl id="cloud-migration-summary"></dl><p id="cloud-migration-status"></p><button id="download-migration-backup"></button><button id="create-cloud-workspace"></button></dialog><button id="open-cloud-workspaces">Cloud workspaces</button><dialog id="cloud-workspaces-dialog"><button id="close-cloud-workspaces"></button><div id="cloud-workspaces-list"></div><p id="cloud-workspaces-status"></p><button id="return-to-local-workspace"></button><button id="migrate-cloud-workspace">Migrate cloud format</button><button id="export-cloud-workspace"></button></dialog><div id="announcer"></div>`;
     let verified = false;
     const entry = () => ({id:'retry-fixture',name:'Interrupted fixture',ownerUid:'owner',role:'owner',status:verified?'ready':'migrating',migration:{state:verified?'verified':'migrating'}});
+    const archivedEntry = {id:'archived-fixture',name:'Archived fixture',ownerUid:'owner',role:'owner',status:'archived',migration:{state:'verified'}};
     const cloudAdapter = {
-      listWorkspaces:async()=>[entry()],
+      listWorkspaces:async()=>[entry(),archivedEntry],
       fetchWorkspace:async()=>{if(!verified)throw new Error('interrupted');return {schemaVersion:4,activeBoardId:'board',boards:[]};},
       migrateWorkspaceToGranular:async()=>{verified=true;return {boards:1,lists:1,cards:1};},
       renameWorkspace:async()=>({}),archiveWorkspace:async()=>({}),restoreWorkspace:async()=>({})
@@ -119,6 +121,12 @@ test('owner can retry an interrupted migration and the workspace list refreshes 
     initializeCloudWorkspaceUI({localAdapter:{},cloudAdapter}).setSession({uid:'owner'});
   }, builtCloudWorkspaceAsset());
   await page.getByRole('button',{name:'Cloud workspaces'}).click();
+  const archivedRow=page.locator('.workspace-entry').filter({hasText:'Archived fixture'});
+  await expect(archivedRow).toContainText('Cloud workspace · archived · retained');
+  await expect(archivedRow.getByRole('button',{name:/Open|Rename|Archive/})).toHaveCount(0);
+  await expect(archivedRow.getByRole('button',{name:'Restore'})).toBeVisible();
+  const [summaryBox,restoreBox]=await Promise.all([archivedRow.locator('.workspace-board').boundingBox(),archivedRow.getByRole('button',{name:'Restore'}).boundingBox()]);
+  expect(restoreBox.y).toBeGreaterThanOrEqual(summaryBox.y+summaryBox.height-1);
   await page.getByRole('button',{name:/Interrupted fixture/}).click();
   await expect(page.locator('#cloud-workspaces-status')).toContainText('migration was interrupted');
   await page.getByRole('button',{name:'Migrate cloud format'}).click();

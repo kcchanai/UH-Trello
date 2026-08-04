@@ -60,7 +60,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
   };
 
   open.addEventListener('click', () => {
-    if (!session) return;
+    if(!session)return;
     prepare(); accountDialog.close(); dialog.showModal(); name.focus(); name.select();
   });
   close.addEventListener('click', () => dialog.close());
@@ -88,7 +88,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
   });
 
   workspaceButton.addEventListener('click', async () => {
-    if (!session) return;
+    if(!session)return;
     if (accountDialog.open) accountDialog.close(); workspacesDialog.showModal(); workspacesList.replaceChildren();
     workspacesStatus.textContent = 'Loading cloud workspaces…';
     returnLocal.hidden = !['cloud-preview','cloud'].includes(globalThis.FlowboardApp?.getMode().kind);
@@ -103,15 +103,15 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
         return;
       }
       workspacesStatus.textContent = 'Choose a verified workspace to open. Owners and editors can explicitly enter cloud edit mode.';
-      entries.forEach(entry => {
-        const row = document.createElement('div'), button = document.createElement('button');
-        row.className = 'workspace-entry'; button.type = 'button'; button.className = 'workspace-board';
-        const title = document.createElement('strong'), detail = document.createElement('span');
-        title.textContent = entry.name || 'Untitled cloud workspace';
-        const archived = entry.status === 'archived', editable = !archived && ['owner','editor'].includes(entry.role) && entry.migration?.state === 'verified';
-        detail.textContent = archived ? 'Cloud workspace · archived · retained' : editable ? `Cloud workspace · ${entry.role} · editable` : 'Cloud workspace · read-only preview';
-        button.hidden = archived; button.append(title, detail);
-        button.addEventListener('click', async () => {
+      entries.forEach(entry=>{
+        const row=document.createElement('div'),button=document.createElement('button'),summary=document.createElement('div');
+        row.className='workspace-entry';Object.assign(button,{type:'button',className:'button button-quiet',textContent:'Open'});summary.className='workspace-board';
+        const title=document.createElement('strong'),detail=document.createElement('span');
+        title.textContent=entry.name||'Untitled cloud workspace';button.setAttribute('aria-label',`Open ${title.textContent}`);
+        const archived=entry.status==='archived',editable=!archived&&['owner','editor'].includes(entry.role)&&entry.migration?.state==='verified';
+        detail.textContent=archived?'Cloud workspace · archived · retained':editable?`Cloud workspace · ${entry.role} · editable`:'Cloud workspace · read-only preview';
+        button.hidden=archived;summary.append(title,detail);
+        button.addEventListener('click',async()=>{
           button.disabled = true; workspacesStatus.textContent = editable ? 'Opening editable cloud workspace…' : 'Opening read-only cloud preview…';
           try {
             const cloudWorkspace = await cloudAdapter.fetchWorkspace(entry.id);
@@ -128,10 +128,10 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
             } else workspacesStatus.textContent = 'This cloud workspace could not be opened. Your local workspace is unchanged.';
           } finally { button.disabled = false; }
         });
-        row.append(button, createWorkspaceLifecycleControls({entry, session, cloudAdapter, openButton:button, title, detail, lifecycleStatus:workspacesStatus, onArchived:archivedEntry => {
+        const actions = createWorkspaceLifecycleControls({entry, session, cloudAdapter, openButton:button, title, detail, lifecycleStatus:workspacesStatus, onArchived:archivedEntry => {
           if (selectedCloudEntry?.id !== archivedEntry.id) return;
           globalThis.FlowboardApp.returnToLocal(); selectedCloudEntry = null; window.dispatchEvent(new CustomEvent('flowboard:cloud-selection')); returnLocal.hidden = true; exportCloud.hidden = true;
-        }}));
+        }}); actions.prepend(button); row.append(summary, actions);
         workspacesList.append(row);
       });
     } catch (error) {
