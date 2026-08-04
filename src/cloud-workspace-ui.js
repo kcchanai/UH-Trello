@@ -131,7 +131,7 @@ export function initializeCloudWorkspaceUI({localAdapter, cloudAdapter}) {
         const actions = createWorkspaceLifecycleControls({entry, session, cloudAdapter, openButton:button, title, detail, lifecycleStatus:workspacesStatus, onArchived:archivedEntry => {
           if (selectedCloudEntry?.id !== archivedEntry.id) return;
           globalThis.FlowboardApp.returnToLocal(); selectedCloudEntry = null; window.dispatchEvent(new CustomEvent('flowboard:cloud-selection')); returnLocal.hidden = true; exportCloud.hidden = true;
-        }}); actions.prepend(button); row.append(summary, actions);
+        }}); row.append(summary, actions);
         workspacesList.append(row);
       });
     } catch (error) {

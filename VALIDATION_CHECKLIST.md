@@ -64,6 +64,7 @@ Run these checks before publishing a Flowboard change.
 - [x] Firestore Emulator tests pass for owner-only rename/archive/restore, invalid lifecycle denial, archived content denial, frozen member/invitation mutations, migration compatibility, and continued hard-delete denial.
 - [x] Browser tests cover rename, retained-data archive confirmation, Escape cancellation, focus return, archived non-openability, restore, and non-owner control absence.
 - [x] At mobile width, archived rows retain their visible workspace name and `archived · retained` status with Restore associated to the same row while Open, Rename, and Archive remain absent.
+- [x] Restoring an archived row immediately restores its Open, Rename, and Archive controls without hiding the workspace identity.
 - [x] Full local validation passes with 16 application tests, 23 Rules tests, 9 browser checks, syntax/static checks, production build, and the unchanged source budget.
 - [x] Interrupted granular migration recovery is owner-readable, viewer-denied, revision-safe for partial writes, and Emulator-tested without direct Console data repair.
 - [ ] Publish and production-test the interrupted-migration recovery release, then retry the retained lifecycle fixture to `ready` before archive/restore acceptance.

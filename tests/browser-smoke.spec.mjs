@@ -114,7 +114,7 @@ test('owner can retry an interrupted migration and the workspace list refreshes 
       listWorkspaces:async()=>[entry(),archivedEntry],
       fetchWorkspace:async()=>{if(!verified)throw new Error('interrupted');return {schemaVersion:4,activeBoardId:'board',boards:[]};},
       migrateWorkspaceToGranular:async()=>{verified=true;return {boards:1,lists:1,cards:1};},
-      renameWorkspace:async()=>({}),archiveWorkspace:async()=>({}),restoreWorkspace:async()=>({})
+      renameWorkspace:async()=>({}),archiveWorkspace:async()=>({}),restoreWorkspace:async()=>({lifecycleRevision:1})
     };
     globalThis.FlowboardApp={getMode:()=>({kind:'local'}),openCloudPreview:()=>{},returnToLocal:()=>{},exportCloudPreview:()=>{}};
     const {initializeCloudWorkspaceUI}=await import(asset);
@@ -127,6 +127,12 @@ test('owner can retry an interrupted migration and the workspace list refreshes 
   await expect(archivedRow.getByRole('button',{name:'Restore'})).toBeVisible();
   const [summaryBox,restoreBox]=await Promise.all([archivedRow.locator('.workspace-board').boundingBox(),archivedRow.getByRole('button',{name:'Restore'}).boundingBox()]);
   expect(restoreBox.y).toBeGreaterThanOrEqual(summaryBox.y+summaryBox.height-1);
+  await archivedRow.getByRole('button',{name:'Restore'}).click();
+  await expect(archivedRow).toContainText('Cloud workspace · owner · editable');
+  await expect(archivedRow.getByRole('button',{name:'Open Archived fixture'})).toBeVisible();
+  await expect(archivedRow.getByRole('button',{name:'Rename'})).toBeVisible();
+  await expect(archivedRow.getByRole('button',{name:'Archive',exact:true})).toBeVisible();
+  await expect(archivedRow.getByRole('button',{name:'Restore'})).toHaveCount(0);
   await page.getByRole('button',{name:/Interrupted fixture/}).click();
   await expect(page.locator('#cloud-workspaces-status')).toContainText('migration was interrupted');
   await page.getByRole('button',{name:'Migrate cloud format'}).click();
