@@ -2,7 +2,7 @@
 
 ## Status
 
-Flowboard is a GitHub Pages-hosted, local-first application with real Firebase Google Authentication and authenticated shared Firestore workspaces. Phase H production authorization, privacy, revocation, conflict, convergence, accessibility, quota, deployment, and cleanup gates are complete. Owner-only cloud workspace rename and recoverable archive/restore are deployed. Owner archive/Restore, retained-content recovery, and exact browser-local byte equality passed in production; independent-context convergence, lifecycle-specific role denials, listener shutdown, and final fixture closeout remain pending.
+Flowboard is a GitHub Pages-hosted, local-first application with real Firebase Google Authentication and authenticated shared Firestore workspaces. Core Phase H production authorization, privacy, revocation, conflict, convergence, accessibility, quota, deployment, and cleanup gates are complete. Owner-only cloud workspace rename and recoverable archive/restore are deployed. Owner archive/Restore, retained-content recovery, and exact browser-local byte equality passed in production; independent-context convergence, lifecycle-specific role denials, listener shutdown, and final fixture closeout remain pending.
 
 The complete, current order of work is [`TERRA_NEXT_PHASES_PLAN.md`](TERRA_NEXT_PHASES_PLAN.md). This document records the selected architecture and the constraints future work must preserve.
 
