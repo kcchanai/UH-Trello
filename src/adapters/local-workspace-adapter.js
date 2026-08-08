@@ -1,12 +1,6 @@
 import {createUnavailableCloudAdapter} from './adapter-contract.js';
 
-/**
- * Browser-local implementation of the workspace adapter.
- *
- * `normalizeWorkspace`, `validWorkspace`, `migrateLegacy`, and `makeWorkspace`
- * are injected from Flowboard's domain module so storage stays independent of
- * the current schema and can be tested without the UI.
- */
+/** Browser-local adapter with injected schema helpers for UI-independent tests. */
 export function createLocalWorkspaceAdapter({
   storage = globalThis.localStorage,
   storageKey = 'flowboard-workspace',

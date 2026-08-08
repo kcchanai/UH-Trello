@@ -8,7 +8,7 @@ This is the authoritative sequential plan for Flowboard. It replaces the earlier
 
 Freeze new product features until the remaining workspace-lifecycle production gates are complete.
 
-The core product is already deployed and broadly validated. The highest-value work is now security acceptance, independent-session convergence, evidence consolidation, and beta-risk control. Adding features before these gates close would increase test scope while the source budget has only 21 bytes of headroom.
+The core product is already deployed and broadly validated. The highest-value work is now security acceptance, independent-session convergence, evidence consolidation, and beta-risk control. Adding features before these gates close would increase test scope while the source budget has only 547 bytes of headroom.
 
 Recommended order:
 
@@ -22,12 +22,14 @@ Recommended order:
 
 ## 2. Current production baseline
 
-Last behavior-changing lifecycle client release:
+Last production-accepted behavior-changing lifecycle client release:
 
 ```text
 0b97993b43093e6cb0ccdda1a706d3e2f8d2b391
 Restore cloud workspace open control
 ```
+
+A corrective client release is under validation before independent-context acceptance. It propagates workspace-root name and archive status through the existing realtime listener so a remote rename updates the active heading and a remote archive immediately stops listeners and returns to local mode.
 
 Current architecture:
 
@@ -47,11 +49,11 @@ Current repository validation for this checkpoint:
 ```text
 Application tests:       20/20 passed
 Firestore Rules tests:   23/23 passed
-Browser tests:            9/9 passed
+Browser tests:           10/10 passed
 Syntax/static checks:     passed
 Automated accessibility: passed
 Production build:         passed
-Source budget:            209,979 / 210,000 bytes
+Source budget:            209,453 / 210,000 bytes
 ```
 
 The production Rules recovery revision was published separately from the Pages client. The two later lifecycle UI repairs did not change `firestore.rules`.
@@ -236,7 +238,7 @@ Exit gate:
 
 Goal: restore maintainability and a defensible performance margin before adding product scope.
 
-Current source usage is 209,979 of 210,000 bytes, leaving 21 bytes. This is not adequate development headroom.
+Current source usage is 209,453 of 210,000 bytes, leaving 547 bytes. This is not adequate development headroom.
 
 Recommended work:
 
@@ -247,6 +249,7 @@ Recommended work:
 5. Target at least 10,000 bytes of source-budget headroom, or formally revise the budget only after documenting deployed transfer size, compression, parse cost, and target-device performance. Never raise the budget merely to silence a failing check.
 6. Update stale package metadata and release notes.
 7. Run the full unit, Rules, browser, accessibility, build, diff, and deployed-console gates after any source refactor.
+8. Evaluate replacing the duplicated `app.js` state/domain helpers with the existing `FlowboardState` boundary after lifecycle acceptance. Preserve cloud `revision` and `clientMutationId` fields at workspace, board, list, and card levels, and require focused cloud-mutation coverage; an independent review estimated roughly 6.8 KB of potential source reduction.
 
 Exit gate:
 

@@ -3,6 +3,7 @@ import {readdirSync} from 'node:fs';
 
 const builtLifecycleAsset = () => `/UH-Trello/assets/${readdirSync('dist/assets').find(file => file.startsWith('workspace-lifecycle-ui-') && file.endsWith('.js'))}`;
 const builtCloudWorkspaceAsset = () => `/UH-Trello/assets/${readdirSync('dist/assets').find(file => file.startsWith('cloud-workspace-ui-') && file.endsWith('.js'))}`;
+const builtCloudSyncAsset = () => `/UH-Trello/assets/${readdirSync('dist/assets').find(file => file.startsWith('cloud-sync-controller-') && file.endsWith('.js'))}`;
 
 test('critical local-first card workflow persists after reload', async ({page}) => {
   await page.goto('/UH-Trello/');
@@ -44,8 +45,40 @@ test('viewer card dialog close button remains enabled and returns focus', async 
   await expect(card).toBeFocused();
 });
 
+test('workspace root rename converges and archive returns the cloud session to local mode', async ({page}) => {
+  await page.goto('/UH-Trello/');
+  await page.waitForFunction(() => globalThis.FlowboardApp && globalThis.FlowboardState);
+  await expect(page.locator('#cloud-status')).toHaveText('Google sign-in available');
+  await page.evaluate(async asset => {
+    const {initializeCloudSyncController} = await import(asset);
+    let listener, subscriptions = 0, stops = 0;
+    const adapter = {
+      verifyWorkspaceAccess:async () => 'owner',
+      subscribeWorkspace:async options => { listener = options; subscriptions += 1; return () => { stops += 1; }; }
+    };
+    FlowboardApp.openCloudWorkspace(FlowboardState.makeWorkspace(), {id:'root-listener-fixture', name:'Before root rename', role:'owner'});
+    initializeCloudSyncController(adapter).setSession({uid:'owner'});
+    globalThis.lifecycleRootProbe = {
+      ready:() => Boolean(listener),
+      rename:() => listener.onWorkspace({status:'ready', name:'After root rename'}),
+      archive:() => listener.onWorkspace({status:'archived', name:'After root rename'}),
+      late:() => listener.onWorkspace({status:'ready', name:'Late root rename'}),
+      counts:() => ({subscriptions, stops})
+    };
+  }, builtCloudSyncAsset());
+  await page.waitForFunction(() => lifecycleRootProbe.ready());
+  await page.evaluate(() => lifecycleRootProbe.rename());
+  await expect.poll(() => page.evaluate(() => FlowboardApp.getMode().name)).toBe('After root rename');
+  await page.evaluate(() => lifecycleRootProbe.archive());
+  await expect.poll(() => page.evaluate(() => FlowboardApp.getMode().kind)).toBe('local');
+  await page.evaluate(() => { lifecycleRootProbe.late(); window.dispatchEvent(new Event('online')); });
+  await expect.poll(() => page.evaluate(() => lifecycleRootProbe.counts())).toEqual({subscriptions:1, stops:1});
+  await expect(page.getByText('Local owner · owner · local-only')).toBeVisible();
+});
+
 test('Google account dialog preserves an explicit local-only boundary', async ({page}) => {
   await page.goto('/UH-Trello/');
+  await expect(page.locator('#cloud-status')).toHaveText('Google sign-in available');
   const account = page.getByRole('button', {name: 'Sign in with Google'});
   await account.click();
   const dialog = page.getByRole('dialog', {name: 'Google sign-in'});

@@ -115,7 +115,7 @@ async function changeCardComment(app, auth, {workspaceId, boardId, cardId, comme
 export const updateCardComment = (app, auth, options) => changeCardComment(app, auth, options);
 export const removeCardComment = (app, auth, options) => changeCardComment(app, auth, {...options, remove:true});
 
-export function subscribeCloudWorkspace(app, auth, {workspaceId, boardId, onBoard, onMembership, onStatus, onError}) {
+export function subscribeCloudWorkspace(app, auth, {workspaceId, boardId, onWorkspace, onBoard, onMembership, onStatus, onError}) {
   const db = getFirestore(app), user = requireUser(auth), snapshots = {board:null, lists:null, cards:null};
   let stopped = false, unsubscribers = [];
   const stop = () => { if (stopped) return; stopped = true; unsubscribers.splice(0).forEach(unsubscribe => unsubscribe()); };
@@ -133,7 +133,7 @@ export function subscribeCloudWorkspace(app, auth, {workspaceId, boardId, onBoar
   const options = {includeMetadataChanges:true};
   const watch = (reference, next) => onSnapshot(reference, options, next, fail);
   unsubscribers = [
-    watch(doc(db, 'workspaces', workspaceId), snapshot => { if (!snapshot.exists()) return fail(Object.assign(new Error('Workspace access was removed.'), {code:'ACCESS_REMOVED'})); }),
+    watch(doc(db, 'workspaces', workspaceId), snapshot => { if (!snapshot.exists()) return fail(Object.assign(new Error('Workspace access was removed.'), {code:'ACCESS_REMOVED'})); onWorkspace?.(snapshot.data()); }),
     watch(doc(db, 'workspaces', workspaceId, 'members', user.uid), snapshot => { if (!snapshot.exists()) return fail(Object.assign(new Error('Workspace access was removed.'), {code:'ACCESS_REMOVED'})); onMembership?.(snapshot.data().role); }),
     watch(doc(db, 'workspaces', workspaceId, 'boards', boardId), snapshot => { snapshots.board = snapshot; emitBoard(); }),
     watch(query(collection(db, 'workspaces', workspaceId, 'boards', boardId, 'lists'), orderBy('rank')), snapshot => { snapshots.lists = snapshot; emitBoard(); }),

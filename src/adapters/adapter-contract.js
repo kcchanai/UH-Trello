@@ -1,11 +1,4 @@
-/**
- * Flowboard workspace adapter contract.
- *
- * Adapters isolate the UI/domain layer from where an optional workspace lives.
- * The local adapter is the only functional adapter in Phase A. Remote methods
- * intentionally reject until a configured, server-authorized implementation is
- * introduced in later phases.
- */
+/** Shared method list for configured and unavailable cloud adapters. */
 
 export const REMOTE_METHODS = Object.freeze([
   'getSession', 'onAuthStateChange', 'signInWithGoogle', 'signOut', 'verifyWorkspaceAccess',
@@ -24,10 +17,7 @@ export class CloudNotConfiguredError extends Error {
   }
 }
 
-/**
- * A deliberately non-functional cloud boundary. This is not fake sign-in or
- * fake synchronization: every remote method rejects clearly until Phase B+.
- */
+/** Reject cloud operations clearly when Firebase is unavailable. */
 export function createUnavailableCloudAdapter() {
   const unavailable = async () => { throw new CloudNotConfiguredError(); };
   return Object.freeze(Object.fromEntries(REMOTE_METHODS.map(method => [method, unavailable])));

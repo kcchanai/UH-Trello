@@ -65,9 +65,9 @@ Run these checks before publishing a Flowboard change.
 - [x] Browser tests cover rename, retained-data archive confirmation, Escape cancellation, focus return, archived non-openability, restore, and non-owner control absence.
 - [x] At mobile width, archived rows retain their visible workspace name and `archived · retained` status with Restore associated to the same row while Open, Rename, and Archive remain absent.
 - [x] Restoring an archived row immediately restores its Open, Rename, and Archive controls without hiding the workspace identity.
-- [x] Full local validation passes with 20 application/tooling tests, 23 Rules tests, 9 browser checks, syntax/static checks, production build, and the unchanged source budget.
+- [x] Full local validation passes with 20 application/tooling tests, 23 Rules tests, 10 browser checks, syntax/static checks, production build, and 209,453 of 210,000 source bytes.
 - [x] Built lifecycle-dialog regression displays the exact stale-session message, leaves the dialog recoverable, and proves the losing name is not applied.
-- [x] Sync-controller regression proves archive-style `permission-denied` stops listeners exactly once, returns to local mode, ignores late callbacks, and does not reconnect on the next online event.
+- [x] Sync-controller regressions prove workspace-root rename propagation and archived-root handling that stops listeners exactly once, returns to local mode, ignores late callbacks, and does not reconnect on the next online event.
 - [x] Interrupted granular migration recovery is owner-readable, viewer-denied, revision-safe for partial writes, and Emulator-tested without direct Console data repair.
 - [x] Publish and production-test the interrupted-migration recovery release, then retry the retained lifecycle fixture to `ready` before archive/restore acceptance.
 - [x] Publish the source-controlled Rules only after release approval and record the deployed Rules source revision.

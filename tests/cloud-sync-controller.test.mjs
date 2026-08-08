@@ -8,13 +8,14 @@ function harness({verifyWorkspaceAccess = async () => 'editor'} = {}) {
   const events = new EventTarget();
   globalThis.window = events;
   Object.defineProperty(globalThis, 'navigator', {value:{onLine:true}, configurable:true});
-  const calls = {subscriptions:[], unsubscribed:0, statuses:[], boards:[], roles:[], removed:[]};
+  const calls = {subscriptions:[], unsubscribed:0, statuses:[], boards:[], roles:[], names:[], removed:[]};
   let mode = {kind:'local'}, boardId = 'board-a';
   globalThis.FlowboardApp = {
     getMode:() => ({...mode}), getActiveBoardId:() => boardId,
     setCloudSyncStatus:(...args) => calls.statuses.push(args),
     applyRemoteCloudBoard:value => calls.boards.push(value),
     updateCloudRole:role => calls.roles.push(role),
+    updateCloudWorkspaceName:(...args) => calls.names.push(args),
     handleCloudAccessRemoved:message => { calls.removed.push(message); mode = {kind:'local'}; }
   };
   const adapter = {verifyWorkspaceAccess, async subscribeWorkspace(options) { calls.subscriptions.push(options); return () => { calls.unsubscribed += 1; }; }};
@@ -32,9 +33,11 @@ test('cloud sync scopes listeners to the active workspace and board and restarts
   assert.equal(h.calls.subscriptions[0].workspaceId, 'workspace-a');
   assert.equal(h.calls.subscriptions[0].boardId, 'board-a');
   h.calls.subscriptions[0].onStatus('synced');
+  h.calls.subscriptions[0].onWorkspace({status:'ready', name:'Renamed workspace'});
   h.calls.subscriptions[0].onMembership('viewer');
   h.calls.subscriptions[0].onBoard({board:{id:'board-a'}});
   assert.deepEqual(h.calls.statuses.at(-1), ['Synced', '']);
+  assert.deepEqual(h.calls.names, [['workspace-a', 'Renamed workspace']]);
   assert.deepEqual(h.calls.roles, ['viewer']);
   assert.equal(h.calls.boards.length, 1);
 
@@ -74,7 +77,7 @@ test('cloud sync verifies membership on reconnect and clears revoked cloud mode'
   assert.match(h.calls.removed.at(-1), /access was removed/i);
 });
 
-test('archived workspace permission loss stops once and does not reconnect', async () => {
+test('archived workspace snapshot stops once and does not reconnect', async () => {
   const h = harness();
   h.setMode({kind:'cloud', id:'workspace-a', role:'editor'});
   h.controller.setSession({uid:'member-a'});
@@ -82,14 +85,17 @@ test('archived workspace permission loss stops once and does not reconnect', asy
   assert.equal(h.calls.subscriptions.length, 1);
 
   const listener = h.calls.subscriptions[0];
-  listener.onError(Object.assign(new Error('archived'), {code:'permission-denied'}));
+  listener.onWorkspace({status:'archived', name:'Archived workspace'});
   assert.equal(h.calls.unsubscribed, 1);
   assert.equal(h.calls.removed.length, 1);
+  assert.match(h.calls.removed[0], /archived/i);
   assert.equal(h.getMode().kind, 'local');
 
+  listener.onWorkspace({status:'ready', name:'Late workspace name'});
   listener.onError(Object.assign(new Error('late archived callback'), {code:'permission-denied'}));
   assert.equal(h.calls.unsubscribed, 1);
   assert.equal(h.calls.removed.length, 1);
+  assert.equal(h.calls.names.length, 0);
 
   h.events.dispatchEvent(new Event('online'));
   await tick();

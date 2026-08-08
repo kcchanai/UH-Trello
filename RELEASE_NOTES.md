@@ -4,10 +4,10 @@
 
 - Firebase-authenticated owner/editor/viewer collaboration, granular revision-aware editing, realtime convergence, activity, assignments, comments, invitations, member administration, revocation, and ownership transfer are deployed.
 - Owner-only workspace rename and recoverable archive/Restore retain descendants, deny archived content access, return active sessions to independent local data, and keep parent hard deletion denied.
-- The last behavior-changing lifecycle client release is `0b97993b43093e6cb0ccdda1a706d3e2f8d2b391` (`Restore cloud workspace open control`).
+- The last production-accepted behavior-changing lifecycle client release is `0b97993b43093e6cb0ccdda1a706d3e2f8d2b391` (`Restore cloud workspace open control`). A corrective release now propagates workspace-root name and archive status through the existing realtime listener and remains subject to independent-context production acceptance.
 - Production owner archive/Restore, retained-content reopening, visual local restoration, and exact localStorage equality passed. Independent-context and lifecycle-specific role gates remain in `TERRA_NEXT_PHASES_PLAN.md`.
-- Current released source usage is 209,979 of 210,000 bytes. New feature development is frozen until practical headroom is restored.
-- The current repository checkpoint passes 20 application/tooling tests, 23 Firestore Rules tests, and 9 browser checks. New regressions verify the exact stale-lifecycle message and one-time listener shutdown without reconnect after archive-style permission loss.
+- Current source usage is 209,453 of 210,000 bytes. New feature development is frozen until practical headroom is restored.
+- The current repository checkpoint passes 20 application/tooling tests, 23 Firestore Rules tests, and 10 browser checks. Regressions verify the exact stale-lifecycle message, active-name propagation, and one-time listener shutdown without reconnect after an archived root snapshot.
 
 ## Phase 8 — Performance, testing, and release maturity
 
