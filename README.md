@@ -65,8 +65,8 @@ Optional collaboration stores Google/Firebase identity fields, workspace members
 - `src/config.js` — public environment configuration detection; it exposes no credentials.
 - `state-core.js` — dependency-free state helpers shared by the app and Node unit tests.
 - `firebase.json`, `firestore.rules`, and `firestore.indexes.json` — deployed Firestore policy source plus Emulator Suite configuration; rules remain version-controlled and tested in CI.
-- `FIREBASE_COLLABORATION_PLAN.md` — active authenticated-collaboration roadmap.
-- `TERRA_NEXT_PHASES_PLAN.md` — authoritative sequential implementation handoff for workspace discovery, members, granular cloud data, realtime convergence, and release validation.
+- `FIREBASE_COLLABORATION_PLAN.md` — delivered Firebase collaboration architecture and lifecycle-extension status.
+- `TERRA_NEXT_PHASES_PLAN.md` — authoritative production-hardening, lifecycle acceptance, and beta-readiness plan.
 - `FIREBASE_OWNER_SETUP.md` — exact owner-only Firebase console setup and credential-safety checklist.
 - `tests/` — Node unit tests, Firestore Security Rules tests, and Chromium critical-workflow smoke tests.
 - `.github/workflows/validate.yml` — pull-request/main validation: unit, static, performance-budget, browser, and accessibility checks.
@@ -106,4 +106,4 @@ The Phase 6 audit used Lighthouse accessibility against the locally served app (
 
 ## Collaboration status and next work
 
-Phase A established the local adapter and Vite/GitHub Pages build. Firebase Google Authentication is live, deny-by-default Firestore rules are deployed, and rules tests run in CI. The current migration stage can create and verify a separate owner-controlled cloud copy only after an explicit local JSON backup; it deliberately does not switch the active local workspace or silently synchronize data. This is **not yet live collaboration**: cloud editing, workspace switching, invitations, role administration, revocation, and realtime synchronization remain release-gated. See `FIREBASE_COLLABORATION_PLAN.md` for the roadmap.
+Authenticated shared collaboration is deployed. Flowboard supports explicit cloud workspace switching, granular revision-aware editing, owner/editor/viewer roles, verified-email invitations, member administration, ownership transfer, realtime convergence, revocation, activity, member-backed assignments, comments, and owner-only recoverable workspace archive/Restore. Production authorization and the core Phase H release matrix passed. The remaining lifecycle-extension gates are independent-context stale-revision/convergence, archive listener shutdown, lifecycle-specific real-account denials, and final fixture closeout. See `TERRA_NEXT_PHASES_PLAN.md` for the authoritative risk-ordered plan.

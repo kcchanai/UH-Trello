@@ -1,333 +1,326 @@
-# Flowboard next phases — Terra implementation plan
+# Flowboard production hardening and beta-readiness plan
 
-This is the implementation handoff for continuing Flowboard after the production Google Authentication and verified backup-first cloud-copy milestones. It is intentionally sequential: preserve the live local-first product, ship one independently testable milestone at a time, and do not call a phase complete until its negative security tests pass.
+Last reevaluated: 2026-08-07 HST
 
-## 1. Current production baseline
+This is the authoritative sequential plan for Flowboard. It replaces the earlier implementation handoff for Phases E through H, which are now deployed. Historical architecture and release evidence remain in `COLLABORATION_ARCHITECTURE.md`, `FIREBASE_COLLABORATION_PLAN.md`, and `PHASE_H_RELEASE_VALIDATION.md`.
 
-As of commit `f32f321`:
+## 1. Executive recommendation
 
-- GitHub Pages remains the only web host.
-- Firebase Google Authentication works on the production domain.
-- Cloud Firestore exists with version-controlled, deny-by-default Security Rules.
-- The authenticated owner can explicitly download a local JSON backup, create a separate cloud workspace, upload boards, and verify the remote documents.
-- The browser-local original remains active after migration.
-- Firebase Authentication loads at startup; the larger Firestore workspace module is lazy-loaded.
-- CI runs application tests, Firestore Emulator rules tests, browser workflows, Lighthouse accessibility, and the Vite Pages build.
-- Spark/no-billing architecture remains the initial constraint; pricing and quotas must be rechecked before beta.
+Freeze new product features until the remaining workspace-lifecycle production gates are complete.
 
-The current cloud copy is **not yet an editable shared workspace**. There is no cloud workspace picker, invitation UI, member administration, realtime editing, comments, or release-grade multi-account validation.
+The core product is already deployed and broadly validated. The highest-value work is now security acceptance, independent-session convergence, evidence consolidation, and beta-risk control. Adding features before these gates close would increase test scope while the source budget has only 21 bytes of headroom.
 
-### Known documentation and acceptance gaps
+Recommended order:
 
-1. `COLLABORATION_ARCHITECTURE.md` still describes the superseded Supabase recommendation. Update it before implementing new Firebase collaboration behavior.
-2. The cloud-copy write/read-back was production-tested in one authenticated browser. Add second-browser retrieval through the workspace picker before considering Phase D's original cross-device exit criterion fully closed.
-3. Existing cloud board documents contain a whole-board `snapshot`. Do not build concurrent editing directly on that representation; first migrate to granular board/list/card documents.
-4. `users/{uid}.workspaceIds` can contain stale IDs after another user removes that member because owners cannot safely write another user's profile. Workspace discovery must tolerate denied/missing references and let the signed-in user prune their own stale references.
+1. consolidate current documentation and acceptance tooling;
+2. complete owner lifecycle tests in independent authenticated browser contexts;
+3. complete editor, viewer, non-member, former-member, and revoked-member lifecycle authorization tests;
+4. close production acceptance and leave the disposable fixture in an approved retained state;
+5. make an explicit beta/no-beta decision, including institutional-data boundaries;
+6. recover maintainability and source-budget headroom before any new feature release;
+7. run a small, reversible beta before broader use.
 
-## 2. Non-negotiable constraints
+## 2. Current production baseline
 
-- Local-only mode remains permanent and fully usable without an account.
-- Signing in never uploads, switches, merges, or deletes local data.
-- Switching from local to cloud must be explicit and reversible by switching back.
-- Authentication is not authorization. Firestore Security Rules remain the source of truth.
-- Workspace membership—not board metadata—defines access.
-- Roles remain `owner`, `editor`, and `viewer`.
-- Never expose or request service-account JSON, Admin SDK credentials, OAuth client secrets, private keys, passwords, or Firebase CI tokens.
-- Keep GitHub Pages; do not introduce Firebase Hosting, Cloud Functions, phone authentication, or paid email delivery.
-- Invitation links alone never grant access. Acceptance requires a verified Google email matching the active invitation.
-- Never deploy Test mode or temporary open Firestore rules.
-- Cloud data must never be represented as synchronized until actual Firestore listeners and mutation handling are active.
-- Avoid persistent Firestore disk caching until revocation/privacy behavior is explicitly designed and tested. Memory-only cloud state is safer for the first shared release.
-- Destructive actions use accessible in-app confirmation, restore focus, and explain consequences.
-- Every pushed milestone must leave `main` deployable and local mode intact.
-
-## 3. Target Firestore model
-
-Use this model for the shared-editing implementation:
+Last behavior-changing lifecycle client release:
 
 ```text
-users/{uid}
-
-workspaces/{workspaceId}
-workspaces/{workspaceId}/members/{uid}
-workspaces/{workspaceId}/invites/{inviteId}
-workspaces/{workspaceId}/boards/{boardId}
-workspaces/{workspaceId}/boards/{boardId}/lists/{listId}
-workspaces/{workspaceId}/boards/{boardId}/cards/{cardId}
-workspaces/{workspaceId}/activity/{eventId}
+0b97993b43093e6cb0ccdda1a706d3e2f8d2b391
+Restore cloud workspace open control
 ```
 
-Cards are siblings of lists under a board and carry `listId` plus `rank`. This makes cross-list movement an atomic card update rather than delete/create across list subcollections.
-
-### Required common fields
-
-- Workspace: `name`, `ownerUid`, `schemaVersion`, `status`, `activeBoardId`, `createdAt`, `updatedAt`.
-- Membership: `uid`, `emailLower`, `displayName`, `role`, `joinedAt`, optional `invitedBy`/`inviteId`.
-- Invitation: `emailLower`, `role`, `createdBy`, `createdAt`, `expiresAt`, `revokedAt`, `acceptedAt`, `acceptedBy`.
-- Board/list/card: stable ID, sortable `rank`, integer `revision`, `createdAt`, `updatedAt`, and entity-specific fields.
-- Activity: immutable `actorUid`, `action`, target identifiers, redacted summary, and server timestamp.
-
-New assignments use member UIDs. Legacy free-text assignee names remain readable until explicitly mapped.
+Current architecture:
+
+- GitHub Pages and Vite static hosting;
+- Firebase Google Authentication;
+- Cloud Firestore Standard edition on Spark/no-cost;
+- deny-by-default Firestore Security Rules;
+- memory-only Firestore state with persistent disk caching disabled;
+- explicit local/cloud switching with no silent upload, merge, replacement, synchronization, or deletion of browser-local data;
+- granular, revision-aware cloud boards, lists, cards, activity, assignments, and comments;
+- owner/editor/viewer roles, invitations, member administration, ownership transfer, revocation, and realtime convergence;
+- owner-only rename, recoverable archive, and Restore with retained descendants;
+- denied parent hard deletion and no claim of permanent erasure.
+
+Current repository validation for this checkpoint:
+
+```text
+Application tests:       20/20 passed
+Firestore Rules tests:   23/23 passed
+Browser tests:            9/9 passed
+Syntax/static checks:     passed
+Automated accessibility: passed
+Production build:         passed
+Source budget:            209,979 / 210,000 bytes
+```
+
+The production Rules recovery revision was published separately from the Pages client. The two later lifecycle UI repairs did not change `firestore.rules`.
+
+## 3. Current production acceptance matrix
+
+| Gate | Status | Evidence boundary |
+| --- | --- | --- |
+| Owner create and rename | Passed | Disposable lifecycle fixture only |
+| Interrupted granular migration recovery | Passed | Owner-readable, viewer-denied, revision-safe retry |
+| Owner archive disclosure and retained status | Passed | Recoverable archive, no hard-delete claim |
+| Automatic local fallback after active archive | Passed | Local board visibly restored |
+| Owner Restore and restored Open control | Passed | Active row exposes Open, Rename, Archive |
+| Retained cloud boards, lists, and cards | Passed | Restored fixture reopened without edits |
+| Visual local baseline after Restore | Passed | `Website Launch` and recorded cards returned |
+| Exact local-storage isolation | Passed | `flowboard-workspace` remained exactly 8,539 bytes; `flowboard-data` remained absent |
+| Owner stale lifecycle conflict | Production pending | Built-dialog regression proves exact message and no stale rename; independent authenticated evidence remains required |
+| Two-context rename convergence | Pending | Must converge without refresh |
+| Two-context archive/listener shutdown | Pending | Must fail closed, stop listeners, return local, and avoid reconnect loops |
+| Editor lifecycle denial | Pending | UI absence plus direct production denial |
+| Viewer lifecycle denial | Pending | UI absence plus direct production denial |
+| Non-member lifecycle denial | Pending | Direct production denial without data disclosure |
+| Former/revoked-member lifecycle denial | Pending | Direct denial and listener shutdown |
+| Final fixture disposition | Pending | Leave only the disposable fixture in an approved retained state |
+
+## 4. Non-negotiable boundaries
+
+- Modify production lifecycle state only for `Lifecycle acceptance renamed`.
+- Never rename, archive, restore, migrate, or edit `My Flowboard workspace` for acceptance.
+- Never ask for or retain passwords, authorization codes, tokens, cookies, emails, UIDs, opaque production IDs, invitation links, Firebase configuration values, or verbose logs.
+- Firestore Rules, not UI control visibility, are the authorization boundary.
+- Keep `flowboard-workspace` and `flowboard-data` independent from cloud lifecycle operations.
+- Keep persistent Firestore disk caching disabled unless a separate privacy and revocation design is approved.
+- Keep parent hard deletion denied. Archive remains retained and recoverable, not erasure.
+- Do not use Firebase Console administrator writes as Rules evidence.
+- Do not publish temporary open Rules.
+- Do not add Cloud Functions, Firebase Hosting, paid email delivery, or billing-dependent features without a separate architecture and cost approval.
+- Public Flowboard copy must not use em dashes.
+
+## 5. Sequential execution plan
+
+### Phase 0 - current-state consolidation
+
+Goal: make the repository describe the deployed product and preserve repeatable acceptance tooling.
+
+Work:
+
+1. Replace stale implementation roadmaps and README claims with the current deployed baseline.
+2. Record completed lifecycle production evidence in `VALIDATION_CHECKLIST.md`.
+3. Retain a paste-safe localStorage equality probe that prints only key presence, byte counts, and PASS/FAIL.
+4. Test probe capture, exact PASS, changed-value FAIL, and non-local blocking.
+5. Run syntax/static, source-budget, build, and diff checks.
+6. Commit only documentation, acceptance support, package test registration, and test-only changes after review. A documentation/tooling push must still pass CI; it does not require Firestore Rules publication when Rules are unchanged.
+
+Exit gate:
+
+- documents agree on deployed capabilities and remaining work;
+- acceptance probe tests pass;
+- no application or Rules behavior changes are hidden in the checkpoint;
+- repository changes are reviewed before commit/push.
+
+### Phase 1 - independent-context owner lifecycle
+
+Goal: prove lifecycle convergence, stale-revision rejection, and listener shutdown outside a single browser context.
+
+Use two independent authenticated browser contexts, preferably normal Chrome plus Chrome Incognito or Edge. Two ordinary tabs in one profile are weaker evidence because they share origin storage and authentication persistence.
+
+Use the same owner account, but let the operator complete sign-in in each context. Never transfer session storage, cookies, or tokens.
+
+#### 1A. Rename convergence and stale conflict
+
+1. Open only `Lifecycle acceptance renamed` in both contexts.
+2. Load the workspace picker in context B and leave its lifecycle revision stale.
+3. Rename the fixture in context A to a temporary acceptance name.
+4. Require context B's active workspace heading to converge without refresh.
+5. Attempt a second rename from context B using its stale row.
+6. Require the UI message:
+
+   ```text
+   This workspace changed in another session. Refresh and try again.
+   ```
 
-## 4. Implementation sequence
+7. Require adapter classification `REVISION_CONFLICT` and prove no stale write occurred.
+8. Refresh discovery deliberately, then rename the fixture back to `Lifecycle acceptance renamed`.
+9. Require the canonical name to converge in both contexts.
 
-## Phase E0 — reconcile architecture and harden rules
+#### 1B. Archive propagation and listener shutdown
 
-### Work
+1. Capture a local-storage fingerprint independently in context B while it is in local mode.
+2. Open the fixture in both contexts and confirm active listeners.
+3. Archive the fixture from context A only.
+4. Require context B, without refresh, to stop cloud listeners, close unsafe dialogs, leave cloud mode, and reload its independent local workspace.
+5. Inspect the console for repeated permission errors or reconnect loops. One classified access-loss transition is acceptable; repeated retries are not.
+6. Compare context B's local storage exactly with its baseline.
+7. Verify the archived row is retained and non-openable.
+8. Restore from context A, reopen in both contexts, and verify retained content once without editing.
+9. Return both contexts to local mode.
 
-1. Rewrite `COLLABORATION_ARCHITECTURE.md` as the Firebase decision record and remove active Supabase instructions.
-2. Update `FIREBASE_COLLABORATION_PLAN.md`, `README.md`, and `VALIDATION_CHECKLIST.md` to reflect completed Auth/cloud-copy work and this sequence.
-3. Review `firestore.rules` against the granular board/list/card paths.
-4. Add explicit rule helpers for:
-   - authenticated/verified email checks;
-   - owner/editor/viewer access;
-   - immutable membership UID and protected owner membership;
-   - non-owner self-leave;
-   - invitation creation limited to editor/viewer and no more than seven days;
-   - single-use acceptance by matching verified email;
-   - revoked/expired/accepted invitation denial;
-   - dedicated atomic ownership transfer.
-5. Design ownership transfer as one batch/transaction that updates `workspace.ownerUid`, demotes the old owner's membership, and promotes an existing accepted member. Ordinary role editing must never mint an owner.
-6. Add rules tests before adding corresponding UI.
+Exit gate:
 
-### Mandatory rules tests
+- rename converges in an independent context;
+- stale lifecycle mutation returns `REVISION_CONFLICT` and writes nothing;
+- archive causes one fail-closed transition with no reconnect loop;
+- context B local data is byte-for-byte unchanged;
+- Restore exposes the original retained descendants;
+- canonical fixture name is restored.
 
-- Anonymous denial and cross-workspace isolation.
-- Owner/editor/viewer positive and negative access.
-- Member cannot promote self or another member to owner.
-- Owner cannot delete/demote protected owner through ordinary member operations.
-- Non-owner member can leave; owner cannot leave without transfer.
-- Invite creation rejects owner role, unverified/invalid recipient shape, and expiry beyond seven days.
-- Wrong email, unverified email, expired, revoked, accepted, or role-tampered acceptance fails.
-- Accepted invitation cannot be reused.
-- Ownership transfer succeeds only as the complete atomic operation and never leaves zero owners.
-- Forged workspace/member/invite IDs fail through direct Firestore calls.
-
-### Exit gate
-
-Emulator tests pass in CI; reviewed rules are deployed to production; production owner/editor/viewer/non-member direct-access checks pass before member UI is enabled.
-
-## Phase E1 — cloud workspace discovery and switching shell
-
-### Work
-
-1. Add a workspace selector that clearly separates:
-   - `Local workspace`;
-   - owned cloud workspaces;
-   - shared cloud workspaces.
-2. Make `listWorkspaces()` resilient:
-   - use settled reads rather than failing the whole list for one denied/missing workspace;
-   - ignore inaccessible references;
-   - allow the signed-in user to prune stale IDs from their own `users/{uid}` document.
-3. Add cloud metadata/read-only retrieval for the existing migrated workspace.
-4. Opening a cloud workspace must be explicit. Preserve local state in storage and retain a visible **Return to local workspace** action.
-5. Until granular migration and mutations ship, label cloud content **read-only cloud preview**.
-6. Add cloud-to-Flowboard JSON export before enabling cloud editing.
+### Phase 2 - production role authorization matrix
 
-### Acceptance
+Goal: verify lifecycle authorization with real production identities, not just hidden controls or Emulator tests.
 
-- Aaron can sign in on a second browser/device, see the created cloud workspace, open the read-only preview, and export equivalent data.
-- Switching to the preview does not overwrite `flowboard-workspace`.
-- Signing out or returning local restores the local board immediately.
-- A stale/denied workspace reference does not break the selector.
-
-### Exit gate
-
-Second-browser count/content equivalence passes, completing the remaining Phase D cross-device retrieval criterion.
-
-## Phase E2 — invitation and member administration
-
-### Invitation creation
-
-1. Owner enters a normalized recipient Google email and chooses editor/viewer.
-2. Generate at least 128 bits of randomness using `crypto.getRandomValues`; encode as URL-safe text.
-3. Store an invitation with a seven-day expiry and server timestamps.
-4. Produce a copyable GitHub Pages URL containing workspace and invite IDs. IDs are identifiers, not authority.
-5. Show pending, expired, revoked, and accepted states.
-
-### Invitation acceptance
-
-1. Preserve `workspace` and `invite` query parameters through Google sign-in.
-2. Do not reveal recipient details before authenticated authorization succeeds.
-3. In one batch:
-   - create `members/{auth.uid}` from immutable invitation role/email;
-   - mark invitation accepted by that UID;
-   - add the workspace ID to the accepting user's own profile.
-4. Display generic denial for wrong account, expired/revoked link, or reused invitation without leaking the intended email.
-
-### Member administration
-
-- Owner can list members, change editor/viewer roles, remove non-owner members, revoke pending invitations, and initiate ownership transfer.
-- Editor/viewer can inspect membership and leave the workspace.
-- Removed users may retain a stale self-profile reference; workspace discovery handles and optionally prunes it.
-- UI controls reflect role for usability, while direct rules enforce every operation.
-- New card assignment controls list accepted workspace members by UID.
-
-### Exit gate
-
-Use separate real Google accounts for owner, editor, and viewer. Confirm acceptance, wrong-account denial, role change, removal, self-leave, revocation, ownership transfer, and direct API denial. Do not proceed to realtime editing until revocation works independently of hidden UI.
-
-## Phase F0 — migrate whole-board snapshots to granular documents
+Use existing test identities or create only the minimum memberships needed through supported invitation flows. The operator enters account information locally; no identity details are posted in chat or committed.
 
-### Work
-
-1. Add an idempotent owner-only migration command for each cloud workspace.
-2. For every existing `boards/{boardId}.snapshot`:
-   - create board metadata;
-   - create ranked list documents;
-   - create ranked card documents with `listId`;
-   - preserve rich card fields, archive state, and legacy assignee display data;
-   - record a migration version/status.
-3. Verify entity counts and IDs through direct reads.
-4. Keep the original snapshot until verification succeeds and a cloud JSON export is available.
-5. Only after successful verification, mark granular data authoritative. Deleting legacy snapshots is a later explicit cleanup operation.
-6. Test retry/idempotency after interruption; duplicate lists/cards must not be created.
-
-### Exit gate
-
-Migrated counts and exports match the original cloud copy in two browsers, with local and legacy cloud recovery still available.
-
-## Phase F1 — active cloud adapter and role-aware editing
-
-### Work
-
-1. Refactor UI persistence orchestration so an active workspace has an explicit mode: `local` or `cloud`.
-2. Subscribe only to:
-   - active workspace metadata;
-   - current user's membership;
-   - active board metadata, lists, and cards.
-3. Unsubscribe when switching board/workspace, signing out, leaving, being removed, or losing permission.
-4. Enforce UI behavior:
-   - owner/editor: board/list/card mutations;
-   - viewer: read-only controls and direct-rule denial;
-   - owner-only member/invite/workspace lifecycle actions.
-5. Keep local adapter behavior unchanged and independently tested.
+Required groups:
 
-### Mutation design
+- owner positive rename/archive/restore on the disposable fixture;
+- editor direct rename/archive/restore denial with `permission-denied`;
+- viewer direct rename/archive/restore denial with `permission-denied`;
+- non-member discovery/read and lifecycle denial without metadata disclosure;
+- former owner denial after ownership is safely restored to the intended owner;
+- revoked member denial plus listener shutdown;
+- archived-state denial for non-owner content and member/invitation mutations;
+- continued hard-delete denial, using random nonexistent child IDs where a negative write probe is needed.
 
-- Use per-document integer `revision` and transaction preconditions for edits.
-- Each client mutation has a cryptographically random `clientMutationId` for deduplication and activity correlation.
-- Writes use server timestamps and atomic batches where multiple documents must move together.
-- Card moves update `listId`, `rank`, revision, and activity atomically.
-- Reorders use sparse/fractional ranks and periodic bounded rebalance batches.
-- A revision conflict does not silently overwrite: fetch remote state and offer reload/reapply guidance.
-
-### Exit gate
+Rules for probes:
 
-Owner/editor can create, edit, move, archive, and recover content; viewer is denied in UI and direct Firestore calls; local mode remains unaffected.
-
-## Phase F2 — realtime, pending, offline, and revocation behavior
-
-### Work
-
-1. Use Firestore snapshot metadata to expose `Saving…`, `Synced`, `Offline`, `Retrying`, and `Access removed` truthfully.
-2. Do not enable persistent Firestore disk caching in the first shared release. Start with memory-only listeners to reduce post-revocation residual cloud data.
-3. If an explicit local pending-mutation queue is added:
-   - store client mutation IDs and base revisions;
-   - bound queue size/age;
-   - replay idempotently;
-   - stop and clear inaccessible queued cloud mutations after revocation;
-   - never report queued writes as synced.
-4. On permission denial or membership deletion:
-   - unsubscribe immediately;
-   - clear in-memory cloud state;
-   - return to the workspace selector/local option;
-   - explain that local data was not affected.
-5. Surface quota/resource-exhausted errors and preserve export access where authorization permits.
+- use browser-session SDK adapters where possible;
+- print only operation category, expected classification, and PASS/FAIL;
+- never print response bodies or full error objects;
+- run expected-denied writes only against the disposable fixture or random nonexistent IDs;
+- stop immediately if any expected denial succeeds.
 
-### Two-browser test matrix
+Exit gate:
 
-- Simultaneous edits to different cards converge.
-- Same-card revision conflict is detected and not silently lost.
-- Concurrent card moves converge without duplicate cards.
-- Offline mutation visibly queues/retries and converges after reconnect.
-- Viewer direct write fails.
-- Member removal terminates reads/writes and listeners.
-- Role downgrade takes effect without reload.
-- Sign-out clears cloud UI while local workspace remains.
+- every real-account role produces the expected authorization result;
+- no account credential or identifier is retained;
+- UI behavior and direct Rules behavior agree;
+- any removed/revoked session fails closed and restores local mode.
 
-### Exit gate
+### Phase 3 - production acceptance closeout
 
-Two browsers converge across the required operations, conflict/offline states are truthful, and revocation prevents subsequent direct reads/writes.
+Goal: leave production in a known state and produce one unambiguous acceptance report.
 
-## Phase G — collaboration features
+Work:
 
-Implement only after the core shared board is secure and convergent:
+1. Restore the exact canonical fixture name if needed.
+2. Verify `My Flowboard workspace` remained untouched throughout testing.
+3. Recommend leaving `Lifecycle acceptance renamed` archived and retained after all positive tests, because hard deletion is intentionally unavailable. Obtain explicit approval for the final state before the last archive.
+4. Re-run the complete local validation chain if repository files changed.
+5. Verify `firestore.rules` is unchanged unless a real defect required a reviewed Rules revision.
+6. Record the final client commit, Rules revision/hash, CI runs, Pages run, production console result, and sanitized acceptance matrix.
+7. Commit and push intended documentation/tooling changes using the repository's correct GitHub account, then restore the machine-wide account used by other projects.
 
-1. Authenticated actor activity with bounded pagination.
-2. Member-backed assignments and legacy-assignee mapping.
-3. Comments with edit/delete ownership rules and safe text rendering.
-4. Safe mentions without paid push/email fan-out.
-5. Quota-conscious in-app notifications.
-6. Presence only if a design avoids periodic heartbeat waste; otherwise defer it.
+Exit gate:
 
-Each feature requires its own Security Rules tests, accessibility pass, quota estimate, and redacted error handling.
+- all lifecycle matrix rows are passed or explicitly deferred with rationale;
+- final fixture state is approved and verified;
+- protected production data is untouched;
+- repository, CI, Pages, and documentation agree.
 
-## Phase H — production release and privacy
+### Phase 4 - beta readiness decision
 
-### Security validation
+Goal: decide whether Flowboard should enter a limited beta and what data it may hold.
 
-- Real owner/editor/viewer/non-member accounts.
-- Cross-workspace ID tampering and direct API attempts.
-- Expired/revoked/reused invite tests.
-- Ownership transfer and last-owner protection.
-- Revocation during an active session and during queued/offline work.
-- Rules deployment hash/version recorded in release notes.
+Required decisions:
 
-### Product validation
+1. Identify intended beta users and maximum workspace/member counts.
+2. Decide whether only personal/non-regulated data is allowed. No UH, FERPA, employment, health, financial, export-controlled, or confidential data is allowed without separate written institutional approval.
+3. Confirm project/account succession if the `hawaii.edu` account changes or becomes unavailable.
+4. Define support ownership, incident response, export/recovery guidance, and a user-visible retention/deletion explanation.
+5. Recheck current Firebase pricing, quotas, terms, Authentication limits, and organization policy immediately before beta.
+6. Define quota warning and stop conditions. Spark quota exhaustion must fail visibly, not lose writes silently.
+7. Perform a manual assistive-technology pass with the beta user's actual browser and screen reader where relevant.
 
-- Local-only regression suite.
-- Explicit local/cloud switching and exports.
-- Two-browser realtime and conflict scenarios.
-- Narrow widths (including 573 px and 320 px), 200% zoom, forced colors, reduced motion, keyboard-only operation, dialog focus return, and screen-reader labels.
-- Lighthouse accessibility score 1 with no failed audits.
-- Initial/auth bundle and lazy Firestore chunk budgets.
-- Listener/read/write audit against current Spark quotas.
+Exit gate:
 
-### Privacy and lifecycle
+- beta scope, prohibited data, support owner, quota thresholds, and account succession are written and approved;
+- privacy and retention copy matches the implemented archive-only model;
+- no claim of institutional approval is made without evidence.
 
-- Explain Firebase/Google account data, workspace membership visibility, retention, exports, and deletion.
-- Add owner-confirmed workspace rename and recoverable archive/restore with retained-data disclosure. Permanent purge remains unavailable unless a privileged recursive-deletion architecture is separately approved.
-- Add account/workspace leave behavior and member removal documentation.
-- Redact emails, tokens, invite IDs, and document contents from user-facing diagnostics and logs.
-- Decide whether institutional/UH-controlled data is permitted before beta.
-- Recheck Firebase pricing, quotas, terms, and any hawaii.edu organization policies before release.
+### Phase 5 - engineering headroom before new features
 
-### Exit gate
+Goal: restore maintainability and a defensible performance margin before adding product scope.
 
-Only call collaboration production-ready after all role, direct-access, cross-workspace, revocation, conflict, offline, export/deletion, accessibility, quota, and deployed two-account tests pass.
+Current source usage is 209,979 of 210,000 bytes, leaving 21 bytes. This is not adequate development headroom.
 
-## 5. Commit and release strategy
+Recommended work:
 
-Use small, independently deployable commits, for example:
+1. Freeze feature additions while the lifecycle acceptance phases run.
+2. Produce an asset/module size report and identify dead, duplicated, or obsolete code.
+3. Prefer removing dead paths and consolidating repeated logic over further hand-minifying maintainable source.
+4. Preserve semantic static guards and behavioral browser tests while refactoring.
+5. Target at least 10,000 bytes of source-budget headroom, or formally revise the budget only after documenting deployed transfer size, compression, parse cost, and target-device performance. Never raise the budget merely to silence a failing check.
+6. Update stale package metadata and release notes.
+7. Run the full unit, Rules, browser, accessibility, build, diff, and deployed-console gates after any source refactor.
 
-1. `Update Firebase collaboration architecture and rule tests`
-2. `Add cloud workspace picker and read-only preview`
-3. `Add verified-email invitations and member administration`
-4. `Migrate cloud boards to granular Firestore documents`
-5. `Add role-aware cloud workspace editing`
-6. `Add realtime sync and conflict handling`
-7. `Add collaboration activity and comments`
-8. `Complete collaboration security and release validation`
+Exit gate:
 
-For every milestone:
+- the source budget has a meaningful documented margin;
+- source remains reviewable;
+- no local/cloud boundary, authorization, or accessibility regression occurs.
 
-1. Run unit, syntax/static, performance, build, and emulator rules tests.
-2. Exercise positive and negative paths in a real browser.
-3. Commit only intended files; push `main`.
-4. Require both validation and Pages deployment workflows to pass.
-5. Load a cache-busted production URL and inspect the console.
-6. If a transient Lighthouse Chrome-launch failure occurs after browser tests pass, rerun the failed job rather than weakening the gate.
+### Phase 6 - limited reversible beta
 
-## 6. Terra execution instructions
+Goal: observe real usage without broad exposure or irreversible architecture commitments.
 
-Terra should begin with Phase E0, not invitation UI. Read the current rules, adapter contract, Firebase adapters, cloud-migration UI, state domain, and browser/rules tests before editing. Preserve the production Firebase project and public configuration; never request privileged credentials.
+Recommended beta:
 
-After E0, proceed sequentially without bundling all remaining phases into one change. Post a concise phase report after each verified deployment. Stop and ask Aaron only when a real human-controlled prerequisite is required, such as:
+- a very small invited group;
+- personal/non-regulated data only;
+- explicit export guidance;
+- regular quota review;
+- no presence heartbeats, push notifications, paid email fan-out, or persistent cloud cache;
+- a defined stop/rollback path if authorization, quota, account-lifecycle, or data-loss concerns appear.
 
-- publishing materially changed production Firestore Rules if no authenticated deployment path is available;
-- testing with a separate real Google identity;
-- deciding an irreversible privacy/data-residency policy;
-- approving a feature that would require billing or a paid service.
+Collect only privacy-minimal feedback and operational counts. Do not collect workspace contents for telemetry.
 
-No phase is complete based solely on client UI. Security and collaboration claims require emulator tests plus real deployed multi-account/direct-access verification.
+Exit gate:
+
+- beta users complete local-only and shared workflows safely;
+- quota use is sustainable;
+- no unresolved authorization or data-isolation defect exists;
+- expansion is explicitly approved rather than automatic.
+
+## 6. Explicitly deferred architecture
+
+The following are not approved by this plan:
+
+- permanent recursive workspace erasure from the browser client;
+- persistent Firestore disk caching;
+- Cloud Functions or a custom backend;
+- Firebase Hosting/App Hosting;
+- paid email delivery or push fan-out;
+- presence heartbeats;
+- offline durable mutation queues;
+- regulated or institutionally controlled data;
+- broad public signup or uncontrolled beta access.
+
+Permanent erasure requires a separately reviewed trusted backend or administrator process that can enumerate descendants, delete in resumable bounded batches, preserve authorization anchors until completion, verify final deletion, and honor retention policy.
+
+## 7. Release discipline
+
+For every committed milestone:
+
+1. inspect repository status and the exact diff;
+2. run focused tests for the change;
+3. run `npm test`, `npm run check`, `npm run build`, and `git diff --check`;
+4. run `npm run test:rules` whenever Rules or authorization assumptions change;
+5. run the full browser/accessibility suite for client behavior changes;
+6. commit only intended files;
+7. push with the correct repository GitHub account;
+8. verify validation and Pages workflow success;
+9. load a cache-busted production URL and inspect the console;
+10. restore the machine-wide GitHub account required by other projects.
+
+A successful push is not deployment proof. A hidden control is not authorization proof. Emulator success is not production Rules proof.
+
+## 8. Definition of complete
+
+Flowboard lifecycle production acceptance is complete only when:
+
+- all required role and independent-context checks pass;
+- stale writes are rejected without state change;
+- archive listener shutdown is prompt and loop-free;
+- local storage remains byte-for-byte unchanged;
+- retained data returns after Restore;
+- the protected workspace is untouched;
+- final fixture state is approved;
+- documentation matches production behavior;
+- CI, Pages, and the cache-busted production console pass.
+
+New feature development should begin only after this definition is met and Phase 5 restores practical source-budget headroom.

@@ -1,5 +1,14 @@
 # Release notes
 
+## Current collaboration and lifecycle release
+
+- Firebase-authenticated owner/editor/viewer collaboration, granular revision-aware editing, realtime convergence, activity, assignments, comments, invitations, member administration, revocation, and ownership transfer are deployed.
+- Owner-only workspace rename and recoverable archive/Restore retain descendants, deny archived content access, return active sessions to independent local data, and keep parent hard deletion denied.
+- The last behavior-changing lifecycle client release is `0b97993b43093e6cb0ccdda1a706d3e2f8d2b391` (`Restore cloud workspace open control`).
+- Production owner archive/Restore, retained-content reopening, visual local restoration, and exact localStorage equality passed. Independent-context and lifecycle-specific role gates remain in `TERRA_NEXT_PHASES_PLAN.md`.
+- Current released source usage is 209,979 of 210,000 bytes. New feature development is frozen until practical headroom is restored.
+- The current repository checkpoint passes 20 application/tooling tests, 23 Firestore Rules tests, and 9 browser checks. New regressions verify the exact stale-lifecycle message and one-time listener shutdown without reconnect after archive-style permission loss.
+
 ## Phase 8 — Performance, testing, and release maturity
 
 - Added a dependency-free `state-core.js` boundary for versioned state helpers used by Flowboard filtering, CSV export, and import validation.
@@ -10,7 +19,7 @@
 
 ## Dependency decision
 
-The published application remains dependency-free: all production assets are plain HTML, CSS, and JavaScript. Playwright and Lighthouse are installed **ephemerally in GitHub Actions only** for browser/accessibility validation. They are mature MIT-licensed developer tools and are intentionally not shipped to browsers, so they add no runtime payload or production attack surface.
+The published application uses the pinned modular Firebase Web SDK for optional authenticated collaboration. The local-first UI remains vanilla HTML, CSS, and JavaScript with no framework runtime. Playwright and Lighthouse are installed **ephemerally in GitHub Actions only** for browser/accessibility validation and are not shipped to browsers.
 
 ## Release procedure
 

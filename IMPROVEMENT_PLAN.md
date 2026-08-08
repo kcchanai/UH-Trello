@@ -1,10 +1,12 @@
 # Flowboard Improvement Plan
 
+> Historical roadmap status: Phases 0 through 8 were implemented. This document is retained as product-design history and is no longer the active execution plan. Use [`TERRA_NEXT_PHASES_PLAN.md`](TERRA_NEXT_PHASES_PLAN.md) for current production hardening, lifecycle acceptance, source-budget recovery, and beta readiness.
+
 ## Purpose
 
 Evolve the current single-file Trello-style MVP into a polished, dependable board application while preserving its strongest advantage: it is easy to open, understand, deploy, and maintain.
 
-The plan deliberately improves the static/local-first product before introducing accounts or a backend. Each phase should leave the live GitHub Pages site in a complete, usable state.
+This historical plan deliberately improved the static/local-first product before introducing accounts and Firebase collaboration. Each completed phase left the live GitHub Pages site in a usable state.
 
 ## Current baseline
 

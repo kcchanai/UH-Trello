@@ -65,13 +65,17 @@ Run these checks before publishing a Flowboard change.
 - [x] Browser tests cover rename, retained-data archive confirmation, Escape cancellation, focus return, archived non-openability, restore, and non-owner control absence.
 - [x] At mobile width, archived rows retain their visible workspace name and `archived · retained` status with Restore associated to the same row while Open, Rename, and Archive remain absent.
 - [x] Restoring an archived row immediately restores its Open, Rename, and Archive controls without hiding the workspace identity.
-- [x] Full local validation passes with 16 application tests, 23 Rules tests, 9 browser checks, syntax/static checks, production build, and the unchanged source budget.
+- [x] Full local validation passes with 20 application/tooling tests, 23 Rules tests, 9 browser checks, syntax/static checks, production build, and the unchanged source budget.
+- [x] Built lifecycle-dialog regression displays the exact stale-session message, leaves the dialog recoverable, and proves the losing name is not applied.
+- [x] Sync-controller regression proves archive-style `permission-denied` stops listeners exactly once, returns to local mode, ignores late callbacks, and does not reconnect on the next online event.
 - [x] Interrupted granular migration recovery is owner-readable, viewer-denied, revision-safe for partial writes, and Emulator-tested without direct Console data repair.
-- [ ] Publish and production-test the interrupted-migration recovery release, then retry the retained lifecycle fixture to `ready` before archive/restore acceptance.
-- [ ] Publish the source-controlled Rules only after release approval and record the deployed Rules source revision.
-- [ ] Verify production owner rename convergence in a second authenticated browser without refresh.
-- [ ] Verify editor/viewer/non-member/former-member/revoked-member lifecycle denial and listener shutdown after owner archive.
-- [ ] Verify archive and restore leave `flowboard-workspace` and `flowboard-data` unchanged.
+- [x] Publish and production-test the interrupted-migration recovery release, then retry the retained lifecycle fixture to `ready` before archive/restore acceptance.
+- [x] Publish the source-controlled Rules only after release approval and record the deployed Rules source revision.
+- [x] Verify owner archive, automatic local fallback, retained archived presentation, owner Restore, restored cloud descendants, and visual return to the unchanged local baseline using only `Lifecycle acceptance renamed`.
+- [ ] Verify production owner rename convergence in an independent authenticated browser context without refresh, then prove a stale lifecycle mutation returns `REVISION_CONFLICT` without writing.
+- [ ] Verify an owner archive in one context stops the other context's listeners, returns it to unchanged local data, and causes no reconnect loop.
+- [ ] Verify editor/viewer/non-member/former-member/revoked-member lifecycle denial through production Rules, not only hidden controls.
+- [x] Verify archive and restore leave `flowboard-workspace` and `flowboard-data` byte-for-byte unchanged. Production evidence retained `flowboard-workspace` at exactly 8,539 bytes and retained `flowboard-data` as absent.
 - [ ] Restore the production workspace and remove or archive any acceptance fixtures through supported lifecycle operations.
 
 ## Phase H production release and privacy

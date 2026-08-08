@@ -1,20 +1,33 @@
 # Flowboard Firebase collaboration roadmap
 
-This roadmap supersedes the Supabase-specific backend sections of `AUTH_COLLABORATION_IMPLEMENTATION_PLAN.md`. Phase A remains complete. The new target is GitHub Pages plus Firebase Authentication and Cloud Firestore on the no-cost Spark plan.
+Last reconciled: 2026-08-07 HST
 
-**Current handoff:** Phases A–C are complete. Phase D's backup-first cloud-copy creation and production read-back verification are complete; its original second-browser retrieval criterion is assigned to the Phase E workspace picker. Use `TERRA_NEXT_PHASES_PLAN.md` as the authoritative implementation sequence for Phase E0 onward.
+This document summarizes the delivered Firebase collaboration architecture. The active remaining-work sequence is [`TERRA_NEXT_PHASES_PLAN.md`](TERRA_NEXT_PHASES_PLAN.md).
+
+## Current status
+
+Phases A through H are implemented and deployed. Core production authorization, shared editing, revocation, conflict handling, accessibility, privacy, quota review, and deployment validation passed. The owner-only workspace lifecycle extension is deployed and has passed owner archive/restore, retained-content recovery, and exact local-storage isolation. Independent-context lifecycle convergence and the lifecycle-specific real-account denial matrix remain open.
+
+Current deployed lifecycle client:
+
+```text
+0b97993b43093e6cb0ccdda1a706d3e2f8d2b391
+Restore cloud workspace open control
+```
 
 ## Non-negotiable product rules
 
 - Local-only Flowboard remains usable without an account.
-- Signing in never uploads, replaces, or hides local data.
+- Signing in never uploads, replaces, synchronizes, or hides local data.
 - Membership belongs to a workspace, not an individual board.
 - Roles are `owner`, `editor`, and `viewer` and are enforced by Firestore Security Rules.
-- The browser never receives Admin SDK credentials, service-account keys, OAuth client secrets, or other privileged credentials.
-- Cloud functionality is not claimed until tested against Firebase and the deployed GitHub Pages client.
-- The first invitation release uses a copyable random link matched to the invitee's verified Google email. No paid function or email service is required.
+- The browser never receives privileged credentials.
+- Invitation links alone are not authority; acceptance requires the matching verified Google account.
+- Cloud parent hard deletion remains denied.
+- Workspace archive is retained and recoverable, not permanent erasure.
+- Persistent Firestore disk caching remains disabled pending a separate privacy/revocation design.
 
-## Target collections
+## Deployed collection model
 
 ```text
 users/{uid}
@@ -24,93 +37,117 @@ workspaces/{workspaceId}/invites/{inviteId}
 workspaces/{workspaceId}/boards/{boardId}
 workspaces/{workspaceId}/boards/{boardId}/lists/{listId}
 workspaces/{workspaceId}/boards/{boardId}/cards/{cardId}
+workspaces/{workspaceId}/boards/{boardId}/cards/{cardId}/comments/{commentId}
 workspaces/{workspaceId}/activity/{activityId}
 ```
 
-Documents use stable IDs, server timestamps, revision numbers or sortable ranks where ordering matters, and explicit schema versions. Assignees become member UIDs while legacy free-text names remain safely displayable until mapped.
+Documents use stable IDs, server timestamps, bounded fields, revision numbers, mutation identifiers, and sortable ranks where ordering matters. New cloud assignees use member UIDs; legacy local free-text assignments remain readable.
 
-## Phase A — adapter and build foundation (complete)
+## Delivered phases
+
+### Phase A - adapter and build foundation: complete
 
 - Local persistence is behind `LocalWorkspaceAdapter`.
-- Vite builds the GitHub Pages artifact for `/UH-Trello/`.
-- Missing cloud configuration is reported honestly.
-- Local workflows and deployment validation pass.
+- Vite builds the `/UH-Trello/` GitHub Pages artifact.
+- Local data migration, recovery, import/export, and persistence boundaries are tested.
 
-## Phase B — Firebase foundation and rules (complete)
+### Phase B - Firebase foundation and Rules: complete
 
-1. Add pinned modular Firebase Web SDK dependencies and public configuration detection.
-2. Add `firebase.json`, Firestore indexes, deny-by-default Security Rules, and Emulator Suite tests.
-3. Test anonymous denial, workspace isolation, owner/editor/viewer behavior, invite acceptance constraints, revocation, and forged IDs independently of the UI.
-4. Add GitHub Actions rule tests using a disposable `demo-*` Firebase project ID; never point automated tests at production.
-5. Deploy rules/indexes only after Aaron creates the production Firebase project and grants an approved deployment path.
+- Modular Firebase Web SDK integration is deployed.
+- Firestore Rules are deny-by-default and version-controlled.
+- Emulator tests cover role boundaries, invitations, ownership, archived state, migrations, retained content, and hard-delete denial.
+- Production Rules publication remains a separate human-controlled step from Pages deployment.
 
-**Exit:** emulator tests and production rule deployment both pass; direct client requests cannot bypass roles.
+### Phase C - Google Authentication: complete
 
-## Phase C — Google authentication (complete)
+- Google popup sign-in, session restoration, sign-out, and visible account state are deployed.
+- Authentication alone does not switch or migrate local data.
 
-1. Implement Google popup sign-in, session restoration, sign-out, popup/error states, and account identity.
-2. Distinguish the local workspace from owned/shared cloud workspaces.
-3. Preserve local state across sign-in and sign-out.
-4. Test authorized domains and session reload locally and on GitHub Pages.
+### Phase D - cloud workspace migration: complete
 
-**Exit:** Google sign-in works in production without migrating local data.
+- Cloud-copy creation is explicit, count-previewed, backup-first, verified, and recoverable.
+- Granular migration is owner-only, revision-aware, and retryable after interruption.
+- Browser-local state remains independent.
 
-## Phase D — cloud workspaces and migration (cloud-copy milestone complete)
+### Phase E - workspace discovery, invitations, and members: complete
 
-1. Owners create an empty cloud workspace in an atomic batch with their owner membership.
-2. Implement Firebase adapter reads/writes for boards, lists, cards, and activity.
-3. Add explicit local-upload preview and idempotent migration batches.
-4. Verify remote counts before considering migration successful; retain the local copy and export.
-5. Add cloud-to-Flowboard JSON export.
+- Owned/shared workspace discovery and explicit switching are deployed.
+- Verified-email invitations, revocation, role changes, member removal, self-leave, and atomic ownership transfer are deployed.
+- Stale or denied workspace references do not grant access.
 
-**Exit status:** backup-first upload, owner membership, production rule enforcement, direct read-back verification, and local recovery preservation passed. Second-browser workspace discovery/retrieval is the first acceptance gate in `TERRA_NEXT_PHASES_PLAN.md` Phase E1.
+### Phase F - granular editing and realtime convergence: complete
 
-## Phase E — invitations and members
+- Active cloud workspaces use granular board/list/card documents.
+- Owner/editor mutations use transactions, expected revisions, and mutation IDs.
+- Viewer mode is read-only in the UI and denied by Rules.
+- Memory-only listeners stop on mode change, sign-out, revocation, or access loss.
+- Conflict, offline, pending, synchronized, and access-removed states remain distinct.
 
-Implementation detail and prerequisite rule hardening are defined in `TERRA_NEXT_PHASES_PLAN.md` Phases E0–E2. Follow that sequence rather than beginning with invitation UI.
+### Phase G - collaboration surfaces: complete with explicit deferrals
 
-1. Add owner-only member management.
-2. Generate cryptographically random, expiring invite IDs and copyable links.
-3. Permit acceptance only when the signed-in verified email, role, workspace, expiry, and active status match the invitation.
-4. Add revocation, role changes, removal, leave, and atomic ownership transfer/last-owner protection.
-5. Replace new free-text assignees with accepted workspace members.
+Delivered:
 
-**Exit:** owner, editor, viewer, invitee, revoked user, and non-member rule tests pass, including direct API attempts.
+- privacy-minimal append-only activity;
+- member-backed assignments;
+- authenticated bounded comments with soft removal;
+- accessible role-aware controls.
 
-## Phase F — realtime and offline convergence
+Deferred:
 
-1. Subscribe only to the active workspace/board with Firestore snapshot listeners.
-2. Show pending writes, synced, offline, retrying, and conflict states truthfully.
-3. Use transactions/batches and sortable ranks for concurrent structural changes.
-4. Reconcile local pending mutations, revision gaps, role changes, and revocation.
-5. Unsubscribe and clear inaccessible cloud data immediately after access loss.
+- presence heartbeats;
+- paid or server-backed notifications;
+- durable offline queues;
+- persistent cloud disk caching.
 
-**Exit:** two browsers converge after create/edit/move/archive operations without duplicate mutations.
+### Phase H - production release and privacy: core complete
 
-## Phase G — collaboration features
+Passed evidence includes:
 
-- Authenticated actor activity
-- Member-backed assignments
-- Comments and safe mentions
-- Quota-conscious notifications
-- Presence only if it can avoid wasteful Firestore heartbeat reads/writes
-- Rate limits expressible safely without paid Cloud Functions; defer features that require trusted server fan-out
+- owner/editor/viewer/non-member direct authorization;
+- forged/cross-workspace denial;
+- bounded comment query authorization;
+- ownership transfer and former-owner boundaries;
+- parent hard-delete denial;
+- revocation during offline/reconnect;
+- listener shutdown and unchanged local restoration;
+- realtime and conflict checks;
+- accessibility, responsive, quota, terms, privacy, CI, and Pages validation.
 
-## Phase H — production release
+The complete evidence record is [`PHASE_H_RELEASE_VALIDATION.md`](PHASE_H_RELEASE_VALIDATION.md).
 
-- Owner/editor/viewer end-to-end tests
-- Direct-rule negative tests and cross-workspace isolation
-- Offline/reconnect/conflict/revocation tests
-- Accessibility, narrow-screen, reduced-motion, forced-colors, Lighthouse, and performance validation
-- Quota monitoring and read-efficient listener audit
-- Export, deletion, privacy, retention, and redacted-error documentation
-- Deployed GitHub Pages two-account smoke test
+## Workspace lifecycle extension status
+
+Delivered:
+
+- owner-only rename;
+- monotonic `lifecycleRevision` with expected-revision transactions;
+- recoverable archive with retained descendants;
+- denied archived content and frozen membership/invitation mutation;
+- owner Restore;
+- automatic local fallback after active archive;
+- visible archived identity/status and safe mobile row layout;
+- repaired Open control after Restore;
+- interrupted-migration recovery;
+- exact local-storage equality across production archive/restore.
+
+Remaining production gates:
+
+1. independent-context rename convergence without refresh;
+2. stale lifecycle mutation denial with `REVISION_CONFLICT`;
+3. independent-context archive listener shutdown with no reconnect loop;
+4. lifecycle-specific editor/viewer/non-member/former/revoked denial;
+5. final disposable-fixture disposition and acceptance closeout.
 
 ## Spark-plan constraints
 
-- Keep GitHub Pages; do not enable Firebase App Hosting.
-- Do not use phone authentication, paid email delivery, or Cloud Functions in the initial release.
-- Use the Emulator Suite for automated tests.
+- Keep GitHub Pages; do not enable Firebase Hosting/App Hosting.
+- Do not add phone authentication, paid email delivery, Cloud Functions, or a custom backend without approval.
+- Use the Emulator Suite for automated Rules tests.
 - Subscribe only to active data and batch writes where appropriate.
-- Surface quota errors and preserve local exports.
-- Review current Firebase pricing before beta because limits can change.
+- Surface quota errors and preserve exports.
+- Recheck current Firebase pricing, quotas, terms, and organization policy immediately before beta.
+- Do not use regulated or institutionally controlled data without separate written approval.
+
+## Next work
+
+Follow `TERRA_NEXT_PHASES_PLAN.md`. Security acceptance and beta readiness take priority over feature growth. No new product feature should be released until lifecycle production acceptance is closed and practical source-budget headroom is restored.

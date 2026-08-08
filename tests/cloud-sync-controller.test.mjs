@@ -15,11 +15,11 @@ function harness({verifyWorkspaceAccess = async () => 'editor'} = {}) {
     setCloudSyncStatus:(...args) => calls.statuses.push(args),
     applyRemoteCloudBoard:value => calls.boards.push(value),
     updateCloudRole:role => calls.roles.push(role),
-    handleCloudAccessRemoved:message => calls.removed.push(message)
+    handleCloudAccessRemoved:message => { calls.removed.push(message); mode = {kind:'local'}; }
   };
   const adapter = {verifyWorkspaceAccess, async subscribeWorkspace(options) { calls.subscriptions.push(options); return () => { calls.unsubscribed += 1; }; }};
   const controller = initializeCloudSyncController(adapter);
-  return {calls, controller, setMode:value => { mode = value; }, setBoard:value => { boardId = value; }, events};
+  return {calls, controller, setMode:value => { mode = value; }, getMode:() => ({...mode}), setBoard:value => { boardId = value; }, events};
 }
 
 test('cloud sync scopes listeners to the active workspace and board and restarts on board change', async () => {
@@ -72,4 +72,26 @@ test('cloud sync verifies membership on reconnect and clears revoked cloud mode'
   await tick();
   assert.equal(h.calls.unsubscribed, 1);
   assert.match(h.calls.removed.at(-1), /access was removed/i);
+});
+
+test('archived workspace permission loss stops once and does not reconnect', async () => {
+  const h = harness();
+  h.setMode({kind:'cloud', id:'workspace-a', role:'editor'});
+  h.controller.setSession({uid:'member-a'});
+  await tick();
+  assert.equal(h.calls.subscriptions.length, 1);
+
+  const listener = h.calls.subscriptions[0];
+  listener.onError(Object.assign(new Error('archived'), {code:'permission-denied'}));
+  assert.equal(h.calls.unsubscribed, 1);
+  assert.equal(h.calls.removed.length, 1);
+  assert.equal(h.getMode().kind, 'local');
+
+  listener.onError(Object.assign(new Error('late archived callback'), {code:'permission-denied'}));
+  assert.equal(h.calls.unsubscribed, 1);
+  assert.equal(h.calls.removed.length, 1);
+
+  h.events.dispatchEvent(new Event('online'));
+  await tick();
+  assert.equal(h.calls.subscriptions.length, 1);
 });

@@ -67,7 +67,8 @@ test('owner workspace lifecycle dialog renames, archives, restores, and returns 
     fixture.append(openButton, title, detail, status); document.body.prepend(fixture);
     const entry = {id:'fixture', name:'Lifecycle fixture', ownerUid:'owner', role:'owner', status:'ready', migration:{state:'verified'}};
     let revision=0;
-    const mutate=options=>{if(options.expectedRevision!==revision)throw Object.assign(new Error('stale'),{code:'REVISION_CONFLICT'});return ++revision;};
+    const mutate=options=>{if(options.expectedRevision!==revision)throw Object.assign(new Error('This workspace changed in another session. Refresh and try again.'),{code:'REVISION_CONFLICT'});return ++revision;};
+    globalThis.advanceLifecycleRevision=()=>++revision;
     const adapter = {
       renameWorkspace:async options => ({name:options.name.trim(),lifecycleRevision:mutate(options)}),
       archiveWorkspace:async options => ({status:'archived',lifecycleRevision:mutate(options)}),
@@ -100,6 +101,15 @@ test('owner workspace lifecycle dialog renames, archives, restores, and returns 
   await expect(fixture).toContainText('archived · retained');
   await fixture.getByRole('button', {name:'Restore'}).click();
   await expect(fixture.getByRole('button', {name:'Open fixture'})).toBeVisible();
+  await page.evaluate(()=>globalThis.advanceLifecycleRevision());
+  await fixture.getByRole('button', {name:'Rename'}).click();
+  await rename.getByLabel('Workspace name').fill('Stale lifecycle fixture');
+  await rename.getByRole('button', {name:'Save name'}).click();
+  await expect(rename).toBeVisible();
+  await expect(rename.getByRole('status')).toHaveText('This workspace changed in another session. Refresh and try again.');
+  await expect(rename.getByRole('button', {name:'Save name'})).toBeEnabled();
+  await expect(fixture.locator('strong')).toHaveText('Renamed lifecycle fixture');
+  await rename.getByRole('button', {name:'Cancel'}).click();
 });
 
 test('owner can retry an interrupted migration and the workspace list refreshes to editable', async ({page}) => {
